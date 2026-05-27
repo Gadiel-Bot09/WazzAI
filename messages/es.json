@@ -1,0 +1,136 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "update": "Actualizar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar",
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "finish": "Finalizar",
+    "yes": "Sí",
+    "no": "No",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "unlimited": "Ilimitado",
+    "optional": "Opcional"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "register": "Registrarse",
+    "email": "Email",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "fullName": "Nombre completo",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "resetPassword": "Restablecer contraseña",
+    "sendResetEmail": "Enviar email de recuperación",
+    "backToLogin": "Volver al inicio de sesión",
+    "noAccount": "¿No tienes cuenta?",
+    "hasAccount": "¿Ya tienes cuenta?",
+    "continueWithGoogle": "Continuar con Google",
+    "magicLink": "Enviar enlace mágico",
+    "verifyEmail": "Verifica tu email",
+    "verifyEmailDesc": "Te hemos enviado un enlace de verificación a {email}",
+    "loginSuccess": "¡Bienvenido de vuelta!",
+    "registerSuccess": "¡Cuenta creada! Revisa tu email.",
+    "passwordResetSent": "Email de recuperación enviado",
+    "passwordResetSuccess": "Contraseña restablecida exitosamente"
+  },
+  "onboarding": {
+    "title": "Configura tu cuenta",
+    "step1": {
+      "title": "Tu organización",
+      "description": "Cuéntanos sobre tu negocio"
+    },
+    "step2": {
+      "title": "Conecta WhatsApp",
+      "description": "Escanea el código QR con tu teléfono"
+    },
+    "step3": {
+      "title": "Configura la IA",
+      "description": "Personaliza cómo responderá la IA"
+    },
+    "step4": {
+      "title": "Invita a tu equipo",
+      "description": "Añade operadores a tu organización"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "chat": "Conversaciones",
+    "appointments": "Citas",
+    "kanban": "Kanban",
+    "contacts": "Contactos",
+    "analytics": "Analíticas",
+    "knowledge": "Base de conocimiento",
+    "settings": "Configuración",
+    "admin": "Admin",
+    "billing": "Facturación"
+  },
+  "status": {
+    "open": "Abierta",
+    "pending": "Pendiente",
+    "closed": "Cerrada",
+    "connecting": "Conectando",
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
+    "qr_code": "Escanear QR",
+    "trialing": "Prueba gratuita",
+    "active": "Activa",
+    "past_due": "Vencida",
+    "canceled": "Cancelada",
+    "unpaid": "Sin pagar",
+    "paused": "Pausada"
+  },
+  "plans": {
+    "starter": "Starter",
+    "pro": "Pro",
+    "business": "Business",
+    "monthly": "Mensual",
+    "yearly": "Anual",
+    "perMonth": "/mes",
+    "perYear": "/año",
+    "upgrade": "Mejorar plan",
+    "downgrade": "Reducir plan",
+    "currentPlan": "Plan actual",
+    "trialDaysLeft": "{days} días de prueba restantes",
+    "manageBilling": "Gestionar facturación"
+  },
+  "chat": {
+    "newConversation": "Nueva conversación",
+    "searchConversations": "Buscar conversaciones...",
+    "assignTo": "Asignar a",
+    "closeConversation": "Cerrar conversación",
+    "reopenConversation": "Reabrir conversación",
+    "sendMessage": "Enviar mensaje",
+    "typeMessage": "Escribe un mensaje...",
+    "internalNote": "Nota interna",
+    "aiActive": "IA activa",
+    "aiInactive": "IA inactiva",
+    "transferToHuman": "Transferir a humano",
+    "noConversations": "No hay conversaciones",
+    "attachFile": "Adjuntar archivo",
+    "recordAudio": "Grabar audio"
+  },
+  "errors": {
+    "generic": "Algo salió mal. Por favor intenta de nuevo.",
+    "unauthorized": "No tienes permiso para realizar esta acción.",
+    "notFound": "Recurso no encontrado.",
+    "limitReached": "Has alcanzado el límite de tu plan. Mejora tu suscripción.",
+    "instanceLimitReached": "Límite de instancias WhatsApp alcanzado.",
+    "networkError": "Error de conexión. Verifica tu internet.",
+    "sessionExpired": "Tu sesión expiró. Por favor inicia sesión nuevamente."
+  }
+}

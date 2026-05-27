@@ -1,0 +1,136 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "update": "Update",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "close": "Close",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "finish": "Finish",
+    "yes": "Yes",
+    "no": "No",
+    "active": "Active",
+    "inactive": "Inactive",
+    "unlimited": "Unlimited",
+    "optional": "Optional"
+  },
+  "auth": {
+    "login": "Sign in",
+    "logout": "Sign out",
+    "register": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "fullName": "Full name",
+    "forgotPassword": "Forgot your password?",
+    "resetPassword": "Reset password",
+    "sendResetEmail": "Send reset email",
+    "backToLogin": "Back to sign in",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "continueWithGoogle": "Continue with Google",
+    "magicLink": "Send magic link",
+    "verifyEmail": "Verify your email",
+    "verifyEmailDesc": "We sent a verification link to {email}",
+    "loginSuccess": "Welcome back!",
+    "registerSuccess": "Account created! Check your email.",
+    "passwordResetSent": "Recovery email sent",
+    "passwordResetSuccess": "Password reset successfully"
+  },
+  "onboarding": {
+    "title": "Set up your account",
+    "step1": {
+      "title": "Your organization",
+      "description": "Tell us about your business"
+    },
+    "step2": {
+      "title": "Connect WhatsApp",
+      "description": "Scan the QR code with your phone"
+    },
+    "step3": {
+      "title": "Configure AI",
+      "description": "Customize how the AI responds"
+    },
+    "step4": {
+      "title": "Invite your team",
+      "description": "Add operators to your organization"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "chat": "Conversations",
+    "appointments": "Appointments",
+    "kanban": "Kanban",
+    "contacts": "Contacts",
+    "analytics": "Analytics",
+    "knowledge": "Knowledge Base",
+    "settings": "Settings",
+    "admin": "Admin",
+    "billing": "Billing"
+  },
+  "status": {
+    "open": "Open",
+    "pending": "Pending",
+    "closed": "Closed",
+    "connecting": "Connecting",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "qr_code": "Scan QR",
+    "trialing": "Free trial",
+    "active": "Active",
+    "past_due": "Past due",
+    "canceled": "Canceled",
+    "unpaid": "Unpaid",
+    "paused": "Paused"
+  },
+  "plans": {
+    "starter": "Starter",
+    "pro": "Pro",
+    "business": "Business",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "perMonth": "/month",
+    "perYear": "/year",
+    "upgrade": "Upgrade plan",
+    "downgrade": "Downgrade plan",
+    "currentPlan": "Current plan",
+    "trialDaysLeft": "{days} trial days remaining",
+    "manageBilling": "Manage billing"
+  },
+  "chat": {
+    "newConversation": "New conversation",
+    "searchConversations": "Search conversations...",
+    "assignTo": "Assign to",
+    "closeConversation": "Close conversation",
+    "reopenConversation": "Reopen conversation",
+    "sendMessage": "Send message",
+    "typeMessage": "Type a message...",
+    "internalNote": "Internal note",
+    "aiActive": "AI active",
+    "aiInactive": "AI inactive",
+    "transferToHuman": "Transfer to human",
+    "noConversations": "No conversations",
+    "attachFile": "Attach file",
+    "recordAudio": "Record audio"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "unauthorized": "You don't have permission to do this.",
+    "notFound": "Resource not found.",
+    "limitReached": "You've reached your plan limit. Upgrade your subscription.",
+    "instanceLimitReached": "WhatsApp instance limit reached.",
+    "networkError": "Connection error. Check your internet.",
+    "sessionExpired": "Your session expired. Please sign in again."
+  }
+}

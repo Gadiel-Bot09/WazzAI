@@ -1,0 +1,314 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   CSS CUSTOM PROPERTIES — Design Tokens
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* Colors — Light Mode */
+    --background:    0 0% 99%;
+    --foreground:    222.2 84% 4.9%;
+    --card:          0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover:       0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary:       142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary:     210 40% 96%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted:         210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent:        210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive:   0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border:        214.3 31.8% 91.4%;
+    --input:         214.3 31.8% 91.4%;
+    --ring:          142.1 76.2% 36.3%;
+    --radius:        0.625rem;
+
+    /* Charts */
+    --chart-1: 142 76% 36%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Font */
+    --font-inter: 'Inter', sans-serif;
+    --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+  }
+
+  .dark {
+    --background:    222.2 84% 4.9%;
+    --foreground:    210 40% 98%;
+    --card:          222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover:       222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary:       142.1 70.6% 45.3%;
+    --primary-foreground: 144.9 80.4% 10%;
+    --secondary:     217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted:         217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent:        217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive:   0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border:        217.2 32.6% 17.5%;
+    --input:         217.2 32.6% 17.5%;
+    --ring:          142.4 71.8% 29.2%;
+
+    --chart-1: 142 76% 52%;
+    --chart-2: 173 58% 55%;
+    --chart-3: 197 37% 60%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 142.1 70.6% 45.3%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Focus ring for accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-primary/20 text-foreground;
+  }
+}
+
+/* ============================================================
+   COMPONENT UTILITIES
+   ============================================================ */
+
+@layer components {
+  /* Glassmorphism card */
+  .glass-card {
+    @apply bg-background/80 backdrop-blur-xl border border-border/50 shadow-glass;
+  }
+
+  /* WhatsApp bubble — inbound */
+  .bubble-inbound {
+    @apply bg-card text-foreground rounded-2xl rounded-tl-sm shadow-sm;
+  }
+
+  /* WhatsApp bubble — outbound */
+  .bubble-outbound {
+    @apply bg-primary text-primary-foreground rounded-2xl rounded-tr-sm shadow-sm;
+  }
+
+  /* WhatsApp bubble — AI */
+  .bubble-ai {
+    @apply bg-wazz-500/10 text-wazz-700 dark:text-wazz-300 border border-wazz-500/20 rounded-2xl rounded-tl-sm shadow-sm;
+  }
+
+  /* Internal note */
+  .bubble-note {
+    @apply bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800/30 rounded-2xl italic text-sm;
+  }
+
+  /* Status badge */
+  .status-open {
+    @apply bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400;
+  }
+  .status-pending {
+    @apply bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400;
+  }
+  .status-closed {
+    @apply bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-brand-500 to-wazz-500 bg-clip-text text-transparent;
+  }
+
+  /* Shimmer skeleton */
+  .skeleton {
+    @apply bg-muted rounded-md;
+    background-image: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--secondary)) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+  }
+
+  /* Dot pattern background */
+  .bg-dots {
+    background-image: radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Online indicator */
+  .online-indicator {
+    @apply relative;
+  }
+  .online-indicator::after {
+    content: '';
+    @apply absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-background;
+  }
+
+  /* Kanban card hover */
+  .kanban-card {
+    @apply bg-card border border-border rounded-xl p-3 shadow-sm cursor-grab active:cursor-grabbing
+           transition-all duration-200 hover:shadow-card-hover hover:border-primary/30 hover:-translate-y-0.5;
+  }
+
+  /* Priority dot */
+  .priority-low    { @apply text-slate-500; }
+  .priority-medium { @apply text-blue-500; }
+  .priority-high   { @apply text-amber-500; }
+  .priority-urgent { @apply text-red-500; }
+
+  /* Feature card for landing */
+  .feature-card {
+    @apply relative group p-6 rounded-2xl border border-border/60 bg-card
+           transition-all duration-300 hover:border-primary/40 hover:shadow-glow-green hover:-translate-y-1;
+  }
+  .feature-card::before {
+    content: '';
+    @apply absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-wazz-500/5
+           opacity-0 transition-opacity duration-300 group-hover:opacity-100;
+  }
+
+  /* Pricing card */
+  .pricing-card {
+    @apply relative p-8 rounded-3xl border-2 border-border bg-card transition-all duration-300;
+  }
+  .pricing-card.featured {
+    @apply border-primary shadow-glow-green;
+  }
+
+  /* Input with icon */
+  .input-icon-wrapper {
+    @apply relative;
+  }
+  .input-icon {
+    @apply absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none w-4 h-4;
+  }
+  .input-with-icon {
+    @apply pl-10;
+  }
+}
+
+/* ============================================================
+   ANIMATIONS — Additional
+   ============================================================ */
+
+@layer utilities {
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-500 { animation-delay: 500ms; }
+
+  .text-balance { text-wrap: balance; }
+  .text-pretty  { text-wrap: pretty; }
+
+  /* Hide scrollbar but keep functionality */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* ============================================================
+   CHAT SPECIFIC
+   ============================================================ */
+
+.chat-container {
+  display: grid;
+  grid-template-columns: 320px 1fr 300px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+@media (max-width: 1280px) {
+  .chat-container {
+    grid-template-columns: 280px 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Typing indicator */
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--muted-foreground));
+  animation: bounce 1.2s infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+
+/* Message status icons */
+.msg-status-sending  { @apply text-muted-foreground/50; }
+.msg-status-sent     { @apply text-muted-foreground; }
+.msg-status-delivered { @apply text-muted-foreground; }
+.msg-status-read     { @apply text-blue-400; }
+.msg-status-failed   { @apply text-destructive; }
