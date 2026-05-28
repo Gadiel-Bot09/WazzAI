@@ -140,6 +140,14 @@ BEGIN
   ON CONFLICT (id) DO UPDATE
     SET org_id = v_org.id, role = 'owner';
 
+  -- Create default Kanban columns
+  INSERT INTO kanban_columns (org_id, name, color, position, is_default) VALUES
+    (v_org.id, 'Nuevo', '#3b82f6', 1000, true),
+    (v_org.id, 'En Contacto', '#eab308', 2000, true),
+    (v_org.id, 'Negociación', '#f97316', 3000, true),
+    (v_org.id, 'Ganado', '#22c55e', 4000, true),
+    (v_org.id, 'Perdido', '#ef4444', 5000, true);
+
   -- Log the action
   INSERT INTO audit_logs (org_id, user_id, action, metadata)
   VALUES (

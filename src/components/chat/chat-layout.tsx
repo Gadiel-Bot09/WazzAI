@@ -1,0 +1,60 @@
+'use client'
+
+import { useState } from 'react'
+import { ConversationList } from './conversation-list'
+import { ChatWindow } from './chat-window'
+
+interface ChatLayoutProps {
+  initialConversations: any[]
+}
+
+export function ChatLayout({ initialConversations }: ChatLayoutProps) {
+  const [conversations, setConversations] = useState(initialConversations)
+  const [activeId, setActiveId] = useState<string | null>(
+    initialConversations.length > 0 ? initialConversations[0].id : null
+  )
+
+  const activeConversation = conversations.find(c => c.id === activeId)
+
+  return (
+    <div className="flex w-full h-full">
+      {/* Sidebar - Lista de Conversaciones */}
+      <div className={`w-full md:w-80 lg:w-96 flex-shrink-0 border-r bg-white dark:bg-background ${activeId ? 'hidden md:flex flex-col' : 'flex flex-col'}`}>
+        <div className="p-4 border-b h-16 flex items-center justify-between shadow-sm z-10">
+          <h2 className="font-semibold text-lg">Chats</h2>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <ConversationList 
+            conversations={conversations} 
+            activeId={activeId} 
+            onSelect={setActiveId} 
+          />
+        </div>
+      </div>
+
+      {/* Main - Ventana de Chat */}
+      <div className={`flex-1 flex-col h-full bg-[#f0f2f5] dark:bg-muted/10 ${!activeId ? 'hidden md:flex' : 'flex'}`}>
+        {activeConversation ? (
+          <ChatWindow 
+            conversationId={activeConversation.id} 
+            contactName={activeConversation.contact?.name || activeConversation.contact?.phone_number || 'Desconocido'} 
+            contactPhone={activeConversation.contact?.phone_number || ''}
+            isAIActive={activeConversation.is_ai_active ?? false}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center flex-col text-muted-foreground p-8 text-center bg-slate-50 dark:bg-background">
+            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-medium text-foreground mb-2">WhatsApp Inbox</h3>
+            <p className="max-w-md">
+              Selecciona una conversación del panel izquierdo para comenzar a chatear o espera a recibir nuevos mensajes.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

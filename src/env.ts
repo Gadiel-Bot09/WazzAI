@@ -23,7 +23,7 @@ export const env = createEnv({
 
     // ── Google Gemini ───────────────────────────────────────
     /** Google AI Studio API key for Gemini models */
-    GOOGLE_AI_API_KEY: z.string().min(1),
+    GOOGLE_AI_API_KEY: z.string().min(1).optional(),
 
     // ── Stripe ─────────────────────────────────────────────
     /** Stripe secret key (sk_live_ or sk_test_) */
@@ -33,9 +33,9 @@ export const env = createEnv({
 
     // ── Resend ─────────────────────────────────────────────
     /** Resend API key for transactional emails */
-    RESEND_API_KEY: z.string().startsWith('re_'),
+    RESEND_API_KEY: z.string().startsWith('re_').optional(),
     /** From address for outgoing emails */
-    RESEND_FROM_EMAIL: z.string().email(),
+    RESEND_FROM_EMAIL: z.string().email().optional(),
 
     // ── Evolution API (WhatsApp) ────────────────────────────
     /** Base URL of your Evolution API v2 instance */
