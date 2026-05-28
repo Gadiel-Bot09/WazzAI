@@ -27,9 +27,9 @@ export const env = createEnv({
 
     // ── Stripe ─────────────────────────────────────────────
     /** Stripe secret key (sk_live_ or sk_test_) */
-    STRIPE_SECRET_KEY: z.string().startsWith('sk_'),
+    STRIPE_SECRET_KEY: z.string().startsWith('sk_').optional(),
     /** Stripe webhook signing secret (whsec_...) */
-    STRIPE_WEBHOOK_SECRET: z.string().startsWith('whsec_'),
+    STRIPE_WEBHOOK_SECRET: z.string().startsWith('whsec_').optional(),
 
     // ── Resend ─────────────────────────────────────────────
     /** Resend API key for transactional emails */
@@ -53,7 +53,7 @@ export const env = createEnv({
 
     // ── Platform ────────────────────────────────────────────
     /** Base URL of the app (e.g. https://app.wazzai.com) */
-    NEXTAUTH_URL: z.string().url(),
+    NEXTAUTH_URL: z.string().url().optional(),
     /** Node environment */
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   },
@@ -68,7 +68,7 @@ export const env = createEnv({
     /** Supabase anon key — safe to expose (RLS protects data) */
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
     /** Stripe publishable key */
-    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().startsWith('pk_'),
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().startsWith('pk_').optional(),
     /** Application base URL */
     NEXT_PUBLIC_APP_URL: z.string().url(),
     /** Default locale */
