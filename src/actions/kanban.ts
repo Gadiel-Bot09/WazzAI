@@ -9,14 +9,14 @@ export async function getColumnsAction(): Promise<ActionResult<any[]>> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return err('No autorizado')
 
-  const { data: profileData } = await supabase.from('users').select('org_id').eq('id', user.id).single()
+  const { data: profileData } = await supabase.from('users').select('active_organization_id').eq('id', user.id).single()
   const profile = profileData as any
-  if (!profile?.org_id) return err('Organización no encontrada')
+  if (!profile?.active_organization_id) return err('Organización no encontrada')
 
   const { data: columns, error } = await supabase
     .from('kanban_columns')
     .select('*')
-    .eq('org_id', profile.org_id)
+    .eq('org_id', profile.active_organization_id)
     .order('position', { ascending: true })
 
   if (error) {
@@ -32,9 +32,9 @@ export async function getLeadsAction(): Promise<ActionResult<any[]>> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return err('No autorizado')
 
-  const { data: profileData } = await supabase.from('users').select('org_id').eq('id', user.id).single()
+  const { data: profileData } = await supabase.from('users').select('active_organization_id').eq('id', user.id).single()
   const profile = profileData as any
-  if (!profile?.org_id) return err('Organización no encontrada')
+  if (!profile?.active_organization_id) return err('Organización no encontrada')
 
   const { data: leads, error } = await supabase
     .from('leads')
@@ -43,7 +43,7 @@ export async function getLeadsAction(): Promise<ActionResult<any[]>> {
       contact:contacts(name, phone_number, avatar_url),
       conversations(id, last_message_preview, unread_count)
     `)
-    .eq('org_id', profile.org_id)
+    .eq('org_id', profile.active_organization_id)
     .order('position', { ascending: true })
 
   if (error) {
