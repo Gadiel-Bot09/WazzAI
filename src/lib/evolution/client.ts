@@ -88,11 +88,12 @@ export class EvolutionClient {
 
     const data = await response.json()
     // Si la instancia ya está conectada, Evolution puede no devolver base64
-    if (!data.base64 && data.instance?.state === 'open') {
+    const qrBase64 = data.base64 || data.qrcode?.base64
+    if (!qrBase64 && data.instance?.state === 'open') {
       return null
     }
 
-    return { base64: data.base64 }
+    return { base64: qrBase64 }
   }
 
   /**

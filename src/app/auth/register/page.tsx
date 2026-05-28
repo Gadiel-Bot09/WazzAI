@@ -30,6 +30,7 @@ export default function RegisterPage() {
     const res = await registerAction({ email, password, confirm_password, full_name, org_name: 'Temp' })
     
     if (res.success) {
+      setIsLoading(false)
       setSuccess(true)
     } else {
       if (res.fieldErrors) {
