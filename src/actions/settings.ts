@@ -57,7 +57,8 @@ export async function getOrgProfileAction(): Promise<ActionResult<OrgProfile>> {
   const profile = profileData as any
   if (!profile?.active_organization_id) return err('Organización no encontrada')
 
-  const { data: orgData, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: orgData, error } = await (supabase as any)
     .from('organizations')
     .select('id, name, slug, timezone, logo_url')
     .eq('id', profile.active_organization_id)
@@ -86,7 +87,8 @@ export async function updateOrgProfileAction(
     return err('No tienes permiso para editar el perfil de la organización')
   }
 
-  const { error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
     .from('organizations')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', profile.active_organization_id)
@@ -128,7 +130,8 @@ export async function updateAccountAction(updates: {
   if (!user) return err('No autenticado')
 
   if (updates.full_name) {
-    const { error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
       .from('users')
       .update({ full_name: updates.full_name })
       .eq('id', user.id)
@@ -227,8 +230,8 @@ export async function getTeamMembersAction(): Promise<ActionResult<TeamMember[]>
   const profile = profileData as any
   if (!profile?.active_organization_id) return err('Organización no encontrada')
 
-  // Get members via org_memberships or users table
-  const { data: members, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: members, error } = await (supabase as any)
     .from('users')
     .select('id, full_name, role, created_at')
     .eq('active_organization_id', profile.active_organization_id)
