@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle2, ChevronRight, MessageSquare, Bot, Users } from 'lucide-react'
-import { QRScanner } from '@/components/whatsapp/qr-scanner'
+import { WhatsAppConnectionStatus } from '@/components/whatsapp/qr-scanner'
 
 // Pasos del onboarding
 const STEPS = [
@@ -149,7 +149,7 @@ export default function OnboardingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center py-4">
-              <QRScanner onConnected={() => setStep(3)} />
+              <WhatsAppConnectionStatus />
             </CardContent>
             <CardFooter className="flex justify-between">
               <Button variant="ghost" onClick={() => setStep(1)} disabled={isLoading}>
