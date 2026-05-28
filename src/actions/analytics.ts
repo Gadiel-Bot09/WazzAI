@@ -12,8 +12,8 @@ async function getOrgId(): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const { data: profileData } = await supabase
-    .from('users').select('org_id').eq('id', user.id).single()
-  return (profileData as any)?.org_id ?? null
+    .from('users').select('active_organization_id').eq('id', user.id).single()
+  return (profileData as any)?.active_organization_id ?? null
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

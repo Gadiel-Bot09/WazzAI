@@ -25,20 +25,20 @@ export async function getBillingInfoAction(): Promise<ActionResult<BillingInfo>>
   // Get user org
   const { data } = await supabase
     .from('users')
-    .select('org_id')
+    .select('active_organization_id')
     .eq('id', user.id)
     .single()
     
   const profile = data as any
 
-  if (!profile?.org_id) return err('No se encontró la organización')
+  if (!profile?.active_organization_id) return err('No se encontró la organización')
 
   // Get subscription & plan
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: subData } = await (supabase as any)
     .from('subscriptions')
     .select('status, trial_end, plans(name, price_monthly, price_yearly, limits)')
-    .eq('org_id', profile.org_id)
+    .eq('org_id', profile.active_organization_id)
     .single()
 
   // Get support contact settings
