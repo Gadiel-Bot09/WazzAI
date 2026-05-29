@@ -12,6 +12,7 @@ import {
   ChevronRight,
   LogOut,
   ShieldAlert,
+  Smartphone,
 } from 'lucide-react'
 
 const navItems = [
