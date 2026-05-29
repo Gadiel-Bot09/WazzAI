@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { getWhatsAppQRAction } from '@/actions/whatsapp'
+import { getWhatsAppQRAction, disconnectWhatsAppAction } from '@/actions/whatsapp'
 import { Button } from '@/components/ui/button'
 import {
-  Loader2, RefreshCcw, CheckCircle2, Wifi, WifiOff, Smartphone,
+  Loader2, RefreshCcw, CheckCircle2, Wifi, WifiOff, Smartphone, LogOut
 } from 'lucide-react'
 
 type State = 'loading' | 'connecting' | 'open' | 'error'
@@ -73,14 +73,28 @@ export function WhatsAppConnectionStatus({ orgId }: WhatsAppConnectionStatusProp
             Tu número está activo y recibiendo mensajes en tiempo real.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => { setState('loading'); fetchStatus() }}
-        >
-          <RefreshCcw className="w-3.5 h-3.5 mr-2" />
-          Verificar conexión
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setState('loading'); fetchStatus() }}
+          >
+            <RefreshCcw className="w-3.5 h-3.5 mr-2" />
+            Verificar conexión
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={async () => {
+              setState('loading')
+              await disconnectWhatsAppAction()
+              fetchStatus()
+            }}
+          >
+            <LogOut className="w-3.5 h-3.5 mr-2" />
+            Desconectar
+          </Button>
+        </div>
       </div>
     )
   }
