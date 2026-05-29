@@ -13,6 +13,7 @@ import {
   LogOut,
   ShieldAlert,
   Smartphone,
+  Users,
 } from 'lucide-react'
 
 const navItems = [
@@ -25,6 +26,11 @@ const navItems = [
     label: 'Chat en Vivo',
     href: '/dashboard/chat',
     icon: MessageSquare,
+  },
+  {
+    label: 'Contactos',
+    href: '/dashboard/contacts',
+    icon: Users,
   },
   {
     label: 'Configuración IA',
