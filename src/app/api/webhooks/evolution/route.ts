@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         await (supabaseAdmin as any)
           .from('whatsapp_instances')
           .update({ 
-            status: state === 'open' ? 'open' : state === 'connecting' ? 'connecting' : 'disconnected',
+            status: state === 'open' ? 'connected' : state === 'connecting' ? 'connecting' : 'disconnected',
             ...(state === 'open' ? { connected_at: new Date().toISOString() } : {})
           })
           .eq('org_id', org.id)

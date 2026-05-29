@@ -81,7 +81,7 @@ export async function getWhatsAppQRAction(): Promise<ActionResult<{ base64: stri
       const admin = createAdminClient()
       await (admin as any)
         .from('whatsapp_instances')
-        .update({ status: 'open', connected_at: new Date().toISOString() })
+        .update({ status: 'connected', connected_at: new Date().toISOString() })
         .eq('org_id', orgId)
       return ok({ base64: null, state: 'open' })
     }
