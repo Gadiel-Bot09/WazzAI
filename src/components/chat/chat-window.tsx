@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageBubble } from './message-bubble'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Send, Loader2, Phone, MoreVertical, Image as ImageIcon, Bot } from 'lucide-react'
+import { Send, Loader2, Phone, Image as ImageIcon, Bot, Lock } from 'lucide-react'
 import { getMessagesAction, sendChatMessageAction } from '@/actions/chat'
 import { toggleConversationAIAction } from '@/actions/ai'
 import { Switch } from '@/components/ui/switch'
@@ -15,22 +15,33 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { REALTIME_NEW_MESSAGE_EVENT } from './realtime-listener'
+import { ConversationActionsMenu } from './conversation-actions-menu'
+import { CannedMessagePicker } from './canned-message-picker'
 
 interface ChatWindowProps {
   conversationId: string
   contactName: string
   contactPhone: string
   isAIActive?: boolean
+  status?: 'open' | 'closed' | 'pending'
 }
 
-export function ChatWindow({ conversationId, contactName, contactPhone, isAIActive: initialAIActive = false }: ChatWindowProps) {
+export function ChatWindow({
+  conversationId,
+  contactName,
+  contactPhone,
+  isAIActive: initialAIActive = false,
+  status: initialStatus = 'open',
+}: ChatWindowProps) {
   const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [inputText, setInputText] = useState('')
   const [sending, setSending] = useState(false)
   const [aiActive, setAiActive] = useState(initialAIActive)
   const [togglingAI, setTogglingAI] = useState(false)
-  
+  const [convStatus, setConvStatus] = useState<'open' | 'closed' | 'pending'>(initialStatus)
+  const [showCannedPicker, setShowCannedPicker] = useState(false)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const fetchMessages = useCallback(async () => {
@@ -44,10 +55,11 @@ export function ChatWindow({ conversationId, contactName, contactPhone, isAIActi
 
   useEffect(() => {
     setLoading(true)
+    setConvStatus(initialStatus)
     fetchMessages()
-  }, [fetchMessages])
+  }, [fetchMessages, initialStatus])
 
-  // I1-FIX: Listen for realtime new message events from RealtimeListener
+  // Listen for realtime new message events
   useEffect(() => {
     function handleNewMessage(e: Event) {
       const event = e as CustomEvent
@@ -72,15 +84,22 @@ export function ChatWindow({ conversationId, contactName, contactPhone, isAIActi
     setTogglingAI(false)
   }
 
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value
+    setInputText(val)
+    setShowCannedPicker(val.startsWith('/'))
+  }
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!inputText.trim() || sending) return
+    if (!inputText.trim() || sending || convStatus === 'closed') return
 
     const textToSend = inputText.trim()
-    setInputText('') // Optimistic clear
+    setInputText('')
+    setShowCannedPicker(false)
     setSending(true)
 
-    // Add optimistic message
+    // Optimistic message
     const tempId = `temp-${Date.now()}`
     setMessages(prev => [...prev, {
       id: tempId,
@@ -92,20 +111,20 @@ export function ChatWindow({ conversationId, contactName, contactPhone, isAIActi
     scrollToBottom()
 
     const res = await sendChatMessageAction(conversationId, textToSend)
-    
+
     if (!res.success) {
-      // Si falla, podríamos marcar el mensaje como fallido en UI
       console.error(res.error)
     } else {
-      // Re-fetch para tener el id real y timestamps
       await fetchMessages()
     }
-    
+
     setSending(false)
   }
 
+  const isClosed = convStatus === 'closed'
+
   return (
-    <div className="flex flex-col h-full bg-[#f0f2f5] dark:bg-background">
+    <div className="flex flex-col h-full bg-[#f0f2f5] dark:bg-background relative">
       {/* Header */}
       <div className="h-16 border-b flex items-center justify-between px-6 bg-white dark:bg-muted/30 shadow-sm z-10">
         <div className="flex items-center gap-3">
@@ -113,36 +132,61 @@ export function ChatWindow({ conversationId, contactName, contactPhone, isAIActi
             {contactName.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h2 className="font-semibold">{contactName}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold">{contactName}</h2>
+              {isClosed && (
+                <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full border font-medium">
+                  CERRADA
+                </span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Phone className="w-3 h-3" /> {contactPhone}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 text-sm">
-                  <Bot className={`w-4 h-4 ${aiActive ? 'text-violet-500' : 'text-muted-foreground'}`} />
-                  <Switch
-                    checked={aiActive}
-                    onCheckedChange={handleToggleAI}
-                    disabled={togglingAI}
-                    aria-label="Toggle AI"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {aiActive ? 'IA activa — click para desactivar y tomar control manual' : 'IA inactiva — click para reactivar la respuesta automática'}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <Button variant="ghost" size="icon">
-            <MoreVertical className="w-5 h-5 text-muted-foreground" />
-          </Button>
+          {!isClosed && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Bot className={`w-4 h-4 ${aiActive ? 'text-violet-500' : 'text-muted-foreground'}`} />
+                    <Switch
+                      checked={aiActive}
+                      onCheckedChange={handleToggleAI}
+                      disabled={togglingAI}
+                      aria-label="Toggle AI"
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {aiActive ? 'IA activa — click para desactivar' : 'IA inactiva — click para activar'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <ConversationActionsMenu
+            conversationId={conversationId}
+            status={convStatus}
+            onStatusChange={() => {
+              // Reload to reflect new status
+              fetchMessages()
+              // Force status update - parent should ideally re-fetch
+              if (convStatus === 'closed') setConvStatus('open')
+              else setConvStatus('closed')
+            }}
+          />
         </div>
       </div>
+
+      {/* Closed banner */}
+      {isClosed && (
+        <div className="flex items-center justify-center gap-2 py-2 px-4 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-xs font-medium">
+          <Lock className="w-3.5 h-3.5" />
+          Esta conversación está cerrada. Abre el menú (⋮) para reactivarla.
+        </div>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50/50 dark:bg-background/50">
@@ -170,27 +214,49 @@ export function ChatWindow({ conversationId, contactName, contactPhone, isAIActi
 
       {/* Input Area */}
       <div className="p-4 bg-white dark:bg-muted/30 border-t">
-        <form onSubmit={handleSend} className="flex items-end gap-2">
-          <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground">
-            <ImageIcon className="w-5 h-5" />
-          </Button>
-          <div className="flex-1 relative">
-            <Input
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="Escribe un mensaje..."
-              className="w-full bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary/30 shadow-none px-4 py-6 rounded-xl"
-              autoComplete="off"
-            />
+        {isClosed ? (
+          <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground text-sm">
+            <Lock className="w-4 h-4" />
+            <span>La conversación está cerrada — no se pueden enviar mensajes</span>
           </div>
-          <Button 
-            type="submit" 
-            disabled={!inputText.trim() || sending}
-            className="shrink-0 h-12 w-12 rounded-xl"
-          >
-            {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-          </Button>
-        </form>
+        ) : (
+          <form onSubmit={handleSend} className="flex items-end gap-2">
+            <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground">
+              <ImageIcon className="w-5 h-5" />
+            </Button>
+            <div className="flex-1 relative">
+              {showCannedPicker && (
+                <CannedMessagePicker
+                  query={inputText}
+                  onSelect={text => {
+                    setInputText(text)
+                    setShowCannedPicker(false)
+                  }}
+                  onClose={() => setShowCannedPicker(false)}
+                />
+              )}
+              <Input
+                value={inputText}
+                onChange={handleInputChange}
+                onKeyDown={e => {
+                  if (e.key === 'Escape' && showCannedPicker) {
+                    setShowCannedPicker(false)
+                  }
+                }}
+                placeholder="Escribe un mensaje… o escribe / para mensajes predefinidos"
+                className="w-full bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary/30 shadow-none px-4 py-6 rounded-xl"
+                autoComplete="off"
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={!inputText.trim() || sending}
+              className="shrink-0 h-12 w-12 rounded-xl"
+            >
+              {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            </Button>
+          </form>
+        )}
       </div>
     </div>
   )

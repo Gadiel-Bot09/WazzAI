@@ -14,6 +14,8 @@ import {
   ShieldAlert,
   Smartphone,
   Users,
+  MessageSquareText,
+  Star,
 } from 'lucide-react'
 
 const navItems = [
@@ -47,9 +49,19 @@ const navItems = [
     href: '/dashboard/analytics',
     icon: BarChart3,
   },
+  {
+    label: 'Encuestas',
+    href: '/dashboard/analytics/surveys',
+    icon: Star,
+  },
 ]
 
 const bottomItems = [
+  {
+    label: 'Mensajes predefinidos',
+    href: '/dashboard/settings/canned-messages',
+    icon: MessageSquareText,
+  },
   {
     label: 'Configuración',
     href: '/dashboard/settings',

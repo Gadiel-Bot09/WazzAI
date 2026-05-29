@@ -119,3 +119,104 @@ export async function sendChatMessageAction(
     return err('Error al enviar el mensaje')
   }
 }
+
+// ─── CANNED MESSAGES ──────────────────────────────────────────────────────────
+
+export interface CannedMessage {
+  id: string
+  org_id: string
+  created_by: string | null
+  title: string
+  shortcut: string | null
+  content: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export async function getCannedMessagesAction(): Promise<ActionResult<CannedMessage[]>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return err('No autorizado')
+
+  const { data: profile } = await supabase.from('users').select('org_id').eq('id', user.id).single()
+  const orgId = (profile as any)?.org_id
+  if (!orgId) return err('Organización no encontrada')
+
+  const { data, error } = await supabase
+    .from('canned_messages')
+    .select('*')
+    .eq('org_id', orgId)
+    .eq('is_active', true)
+    .order('title')
+
+  if (error) return err('Error al obtener mensajes predefinidos')
+  return ok((data ?? []) as CannedMessage[])
+}
+
+export async function createCannedMessageAction(data: {
+  title: string
+  content: string
+  shortcut?: string
+}): Promise<ActionResult<CannedMessage>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return err('No autorizado')
+
+  const { data: profile } = await supabase.from('users').select('org_id').eq('id', user.id).single()
+  const orgId = (profile as any)?.org_id
+  if (!orgId) return err('Organización no encontrada')
+
+  const admin = createAdminClient()
+  const { data: created, error } = await (admin as any)
+    .from('canned_messages')
+    .insert({
+      org_id: orgId,
+      created_by: user.id,
+      title: data.title.trim(),
+      content: data.content.trim(),
+      shortcut: data.shortcut?.trim() || null,
+    })
+    .select('*')
+    .single()
+
+  if (error) return err('Error al crear mensaje predefinido')
+  return ok(created as CannedMessage)
+}
+
+export async function updateCannedMessageAction(
+  id: string,
+  data: { title?: string; content?: string; shortcut?: string; is_active?: boolean }
+): Promise<ActionResult<void>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return err('No autorizado')
+
+  const admin = createAdminClient()
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (data.title !== undefined) updates.title = data.title.trim()
+  if (data.content !== undefined) updates.content = data.content.trim()
+  if (data.shortcut !== undefined) updates.shortcut = data.shortcut.trim() || null
+  if (data.is_active !== undefined) updates.is_active = data.is_active
+
+  const { error } = await (admin as any)
+    .from('canned_messages')
+    .update(updates)
+    .eq('id', id)
+
+  if (error) return err('Error al actualizar mensaje predefinido')
+  return ok(undefined)
+}
+
+export async function deleteCannedMessageAction(id: string): Promise<ActionResult<void>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return err('No autorizado')
+
+  const admin = createAdminClient()
+  const { error } = await (admin as any).from('canned_messages').delete().eq('id', id)
+
+  if (error) return err('Error al eliminar mensaje predefinido')
+  return ok(undefined)
+}
+

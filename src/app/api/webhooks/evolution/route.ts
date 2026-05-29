@@ -85,6 +85,45 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Org not found' }, { status: 404 })
       }
 
+      // ── Check if this is a survey response ─────────────────────────────────
+      const surveyScore = parseInt(textContent.trim(), 10)
+      if (surveyScore >= 1 && surveyScore <= 5 && textContent.trim().length === 1) {
+        // Look for a pending survey for this contact
+        const { data: pendingContact } = await (supabaseAdmin as any)
+          .from('contacts')
+          .select('id')
+          .eq('org_id', org.id)
+          .eq('phone_number', phone)
+          .single()
+
+        if (pendingContact) {
+          const { data: survey } = await (supabaseAdmin as any)
+            .from('satisfaction_surveys')
+            .select('id')
+            .eq('org_id', org.id)
+            .eq('contact_id', (pendingContact as any).id)
+            .eq('status', 'sent')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single()
+
+          if (survey) {
+            await (supabaseAdmin as any)
+              .from('satisfaction_surveys')
+              .update({
+                score: surveyScore,
+                responded_at: new Date().toISOString(),
+                status: 'responded',
+              })
+              .eq('id', (survey as any).id)
+
+            console.log(`[Webhook] Survey ${(survey as any).id} scored ${surveyScore} by ${phone}`)
+            return NextResponse.json({ success: true, survey_captured: true })
+          }
+        }
+      }
+      // ───────────────────────────────────────────────────────────────────────
+
       // 1. Asegurar que existe un Lead/Contacto para este teléfono
       let leadId = null
       let contactId = null
