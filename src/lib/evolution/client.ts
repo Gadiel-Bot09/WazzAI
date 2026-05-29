@@ -142,7 +142,7 @@ export class EvolutionClient {
       body: JSON.stringify({
         number: phone,
         options: { delay: 1200 }, // Delay humano
-        textMessage: { text },
+        text: text,
       }),
     })
 
