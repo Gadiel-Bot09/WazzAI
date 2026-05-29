@@ -4,7 +4,8 @@ export interface EvolutionInstance {
     owner: string
     profileName: string
     profilePictureUrl: string
-    status: 'open' | 'connecting' | 'close'
+    status?: 'open' | 'connecting' | 'close'
+    state?: 'open' | 'connecting' | 'close'
   }
 }
 
