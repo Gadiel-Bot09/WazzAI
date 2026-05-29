@@ -102,7 +102,7 @@ export function ConversationList({ conversations, activeId, onSelect }: Conversa
                       {contact?.name || contact?.phone_number || 'Desconocido'}
                     </span>
                     {conv.is_ai_active && (
-                      <Bot className="w-3 h-3 text-violet-500 flex-shrink-0" title="IA activa" />
+                      <Bot className="w-3 h-3 text-violet-500 flex-shrink-0" aria-label="IA activa" />
                     )}
                   </div>
                   {conv.last_message_at && (
