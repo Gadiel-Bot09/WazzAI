@@ -36,7 +36,16 @@ export class EvolutionClient {
    */
   async createInstance(orgId: string): Promise<EvolutionCreateInstanceResponse> {
     const instanceName = this.getInstanceName(orgId)
-    const webhookUrl = `${env.NEXT_PUBLIC_APP_URL}/api/webhooks/evolution`
+    let appUrl = env.NEXT_PUBLIC_APP_URL
+    if (!appUrl || appUrl.includes('localhost')) {
+      if (process.env.VERCEL_URL) {
+        appUrl = `https://${process.env.VERCEL_URL}`
+      } else {
+        // Fallback for local development, though Evolution can't reach localhost
+        appUrl = 'http://localhost:3000'
+      }
+    }
+    const webhookUrl = `${appUrl}/api/webhooks/evolution`
 
     const payload = {
       instanceName,
@@ -155,6 +164,16 @@ export class EvolutionClient {
       method: 'DELETE',
       headers: this.headers,
     })
+
+    // Also completely delete the instance to clear webhooks
+    try {
+      await fetch(`${this.baseUrl}/instance/delete/${instanceName}`, {
+        method: 'DELETE',
+        headers: this.headers,
+      })
+    } catch (e) {
+      console.log('Error deleting instance, ignoring', e)
+    }
 
     return response.ok
   }

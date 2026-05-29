@@ -16,8 +16,9 @@ export async function POST(req: Request) {
     // Buscaremos la organización en Supabase usando un enfoque seguro.
     const supabaseAdmin = createAdminClient()
 
-    if (event === 'CONNECTION_UPDATE') {
-      const { state, statusReason } = data
+    if (event === 'CONNECTION_UPDATE' || event === 'connection.update') {
+      const state = data?.state || data?.status || data?.instance?.state
+      const statusReason = data?.statusReason || data?.reason || 0
       
       console.log(`[Webhook] Instance ${instance} connection update: ${state} (Reason: ${statusReason})`)
       
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const org = (orgs as any[])?.find(o => `wazzai_${o.id.replace(/-/g, '')}` === instance) as any
       
-      if (org) {
+      if (org && state) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabaseAdmin as any)
           .from('whatsapp_instances')
@@ -40,14 +41,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true })
     }
 
-    if (event === 'MESSAGES_UPSERT') {
+    if (event === 'MESSAGES_UPSERT' || event === 'messages.upsert') {
       // Data es un array de mensajes o un objeto dependiendo de byEvents config.
       // Suponemos que recibimos el objeto del mensaje directamente.
-      const message = data.message
-      const key = data.key
+      let messageObj = data
+      if (Array.isArray(data)) messageObj = data[0]
+      if (data?.messages && Array.isArray(data.messages)) messageObj = data.messages[0]
+      
+      const message = messageObj?.message
+      const key = messageObj?.key
       
       // Ignorar actualizaciones de sistema o de nosotros mismos si no queremos guardarlas doble
-      if (!message || key.fromMe) {
+      if (!message || !key || key.fromMe) {
         return NextResponse.json({ success: true, ignored: true })
       }
 
