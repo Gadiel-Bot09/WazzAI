@@ -31,10 +31,12 @@ export default async function DashboardLayout({
     // For now, we will assume middleware handles /onboarding routing properly, or we can just render.
   }
 
+  const isPlatformAdmin = user.app_metadata?.platform_admin === true
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {profile?.active_organization_id && <RealtimeListener orgId={profile.active_organization_id} />}
-      <Sidebar />
+      <Sidebar isPlatformAdmin={isPlatformAdmin} />
       <main className="flex-1 flex flex-col min-w-0 bg-muted/10 relative h-screen">
         <SubscriptionGuard>
           {children}

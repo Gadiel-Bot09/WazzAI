@@ -8,10 +8,10 @@ import {
   Settings,
   Bot,
   Brain,
-  Smartphone,
   BarChart3,
   ChevronRight,
   LogOut,
+  ShieldAlert,
 } from 'lucide-react'
 
 const navItems = [
@@ -50,7 +50,7 @@ const bottomItems = [
   },
 ]
 
-export function Sidebar() {
+export function Sidebar({ isPlatformAdmin = false }: { isPlatformAdmin?: boolean }) {
   const pathname = usePathname()
 
   function isActive(href: string) {
@@ -117,6 +117,17 @@ export function Sidebar() {
               )
             })}
             
+            {/* Admin Panel Link */}
+            {isPlatformAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all text-amber-600 hover:bg-amber-500/10 hover:text-amber-700 mt-2"
+              >
+                <ShieldAlert className="h-4 w-4 flex-shrink-0" />
+                <span>Panel Admin</span>
+              </Link>
+            )}
+
             {/* Logout Button */}
             <button
               onClick={async () => {
