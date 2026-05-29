@@ -6,7 +6,7 @@ import type { ActionResult } from '@/lib/utils/server'
 import { evolutionClient } from '@/lib/evolution/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export async function getConversationsAction(): Promise<ActionResult<any[]>> {
+export async function getConversationsAction(): Promise<ActionResult<{ conversations: any[]; showAssignedAgent: boolean }>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return err('No autorizado')
@@ -16,7 +16,7 @@ export async function getConversationsAction(): Promise<ActionResult<any[]>> {
   if (!profile?.org_id) return err('Organización no encontrada')
 
   // Get Org Settings for show_assigned_agent
-  const { data: orgData } = await supabase.from('organizations').select('metadata').eq('id', profile.org_id).single()
+  const { data: orgData } = await (supabase as any).from('organizations').select('metadata').eq('id', profile.org_id).single()
   const meta = (orgData?.metadata as any) || {}
   const showAssignedAgent = !!meta.show_assigned_agent
 
