@@ -72,7 +72,8 @@ export async function getWhatsAppQRAction(): Promise<ActionResult<{ base64: stri
     }
 
     // 5. Si ya está conectado, actualizar estado en DB
-    if (state?.status === 'open') {
+    const connectionState = state?.state || state?.status
+    if (connectionState === 'open') {
       const admin = createAdminClient()
       await (admin as any)
         .from('whatsapp_instances')
@@ -86,7 +87,7 @@ export async function getWhatsAppQRAction(): Promise<ActionResult<{ base64: stri
     
     return ok({ 
       base64: qrResponse?.base64 || null, 
-      state: state?.status || 'connecting' 
+      state: connectionState || 'connecting' 
     })
     
   } catch (error) {

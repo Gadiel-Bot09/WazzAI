@@ -19,9 +19,23 @@ export async function POST(req: Request) {
     if (event === 'CONNECTION_UPDATE') {
       const { state, statusReason } = data
       
-      // Actualizar estado en la tabla organizations (requerirá añadir la columna si no existe,
-      // pero por ahora solo logueamos o podemos actualizar una tabla de "canales")
       console.log(`[Webhook] Instance ${instance} connection update: ${state} (Reason: ${statusReason})`)
+      
+      // Actualizar estado en la tabla whatsapp_instances
+      const { data: orgs } = await supabaseAdmin.from('organizations').select('id')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const org = (orgs as any[])?.find(o => `wazzai_${o.id.replace(/-/g, '')}` === instance) as any
+      
+      if (org) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabaseAdmin as any)
+          .from('whatsapp_instances')
+          .update({ 
+            status: state === 'open' ? 'open' : state === 'connecting' ? 'connecting' : 'disconnected',
+            ...(state === 'open' ? { connected_at: new Date().toISOString() } : {})
+          })
+          .eq('org_id', org.id)
+      }
       
       return NextResponse.json({ success: true })
     }
