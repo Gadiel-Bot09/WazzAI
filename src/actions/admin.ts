@@ -251,16 +251,28 @@ export async function assignPlanToOrgAction(
 
 export async function activateSubscriptionAction(orgId: string): Promise<ActionResult<void>> {
   const admin = getAdmin()
+  
+  // Verify subscription exists
+  const { data: sub } = await (admin as any).from('subscriptions').select('id').eq('org_id', orgId).single()
+  
+  if (!sub) {
+    console.error('activateSubscriptionAction: Subscription row does not exist for org_id', orgId)
+    return err('La organización no tiene una suscripción inicializada. Asigna un plan primero.')
+  }
+
   const { error } = await (admin as any)
     .from('subscriptions')
     .update({ 
       status: 'active',
+      trial_end: null,
+      current_period_start: new Date().toISOString(),
+      current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
       updated_at: new Date().toISOString() 
     })
     .eq('org_id', orgId)
 
   if (error) {
-    console.error('activateSubscriptionAction:', error)
+    console.error('activateSubscriptionAction update error:', error)
     return err('Error al activar la licencia de la organización')
   }
   return ok(undefined)

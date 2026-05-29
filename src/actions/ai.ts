@@ -14,10 +14,10 @@ async function getOrgId(): Promise<string | null> {
   if (!user) return null
   const { data: profileData } = await supabase
     .from('users')
-    .select('active_organization_id')
+    .select('org_id')
     .eq('id', user.id)
     .single()
-  return (profileData as any)?.active_organization_id ?? null
+  return (profileData as any)?.org_id ?? null
 }
 
 // ─── AI Config Actions ────────────────────────────────────────────────────────

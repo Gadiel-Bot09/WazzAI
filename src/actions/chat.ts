@@ -11,9 +11,9 @@ export async function getConversationsAction(): Promise<ActionResult<any[]>> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return err('No autorizado')
 
-  const { data: profileData } = await supabase.from('users').select('active_organization_id').eq('id', user.id).single()
+  const { data: profileData } = await supabase.from('users').select('org_id').eq('id', user.id).single()
   const profile = profileData as any
-  if (!profile?.active_organization_id) return err('Organización no encontrada')
+  if (!profile?.org_id) return err('Organización no encontrada')
 
   const { data: conversations, error } = await supabase
     .from('conversations')
@@ -26,7 +26,7 @@ export async function getConversationsAction(): Promise<ActionResult<any[]>> {
       status,
       contact:contacts(*)
     `)
-    .eq('org_id', profile.active_organization_id)
+    .eq('org_id', profile.org_id)
     .order('last_message_at', { ascending: false })
 
   if (error) {
@@ -62,9 +62,9 @@ export async function sendChatMessageAction(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return err('No autorizado')
 
-  const { data: profileData } = await supabase.from('users').select('active_organization_id').eq('id', user.id).single()
+  const { data: profileData } = await supabase.from('users').select('org_id').eq('id', user.id).single()
   const profile = profileData as any
-  if (!profile?.active_organization_id) return err('Organización no encontrada')
+  if (!profile?.org_id) return err('Organización no encontrada')
 
   const { data: convData } = await supabase
     .from('conversations')
@@ -90,7 +90,7 @@ export async function sendChatMessageAction(
     // 1. Send via Evolution API
     // En el futuro, idealmente usaríamos el instance_id para sacar el nombre de la instancia.
     // Por ahora, como es single-tenant per org en la prueba, usamos el org_id
-    await evolutionClient.sendTextMessage(profile.active_organization_id, contact.phone_number, text)
+    await evolutionClient.sendTextMessage(profile.org_id, contact.phone_number, text)
 
     // 2. Guardar el mensaje en Supabase
     const admin = createAdminClient()
@@ -98,7 +98,7 @@ export async function sendChatMessageAction(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any).from('messages').insert({
       conversation_id: conversationId,
-      org_id: profile.active_organization_id,
+      org_id: profile.org_id,
       sender_id: user.id,
       direction: 'outbound',
       content: text,

@@ -19,13 +19,14 @@ export default async function DashboardLayout({
   // Verificar si completó el onboarding
   const { data: profileData } = await supabase
     .from('users')
-    .select('onboarding_completed, active_organization_id')
+    .select('org_id')
     .eq('id', user.id)
     .single()
     
   const profile = profileData as any
+  const onboardingCompleted = user.user_metadata?.onboarding_completed === true
 
-  if (profile && !profile.onboarding_completed) {
+  if (!onboardingCompleted) {
     // Evitar loop infinito si ya estamos en /dashboard/onboarding
     // Check handled typically in middleware or by layout wrapper. 
     // For now, we will assume middleware handles /onboarding routing properly, or we can just render.
@@ -35,7 +36,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {profile?.active_organization_id && <RealtimeListener orgId={profile.active_organization_id} />}
+      {profile?.org_id && <RealtimeListener orgId={profile.org_id} />}
       <Sidebar isPlatformAdmin={isPlatformAdmin} />
       <main className="flex-1 flex flex-col min-w-0 bg-muted/10 relative h-screen">
         <SubscriptionGuard>

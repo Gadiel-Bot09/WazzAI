@@ -26,12 +26,12 @@ async function getOrgData() {
 
   const { data: profileData } = await supabase
     .from('users')
-    .select('active_organization_id')
+    .select('org_id')
     .eq('id', user.id)
     .single()
 
   const profile = profileData as any
-  return { orgId: profile?.active_organization_id ?? null }
+  return { orgId: profile?.org_id ?? null }
 }
 
 export default async function WhatsAppPage({ searchParams }: PageProps) {

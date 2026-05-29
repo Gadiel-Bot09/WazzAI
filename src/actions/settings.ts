@@ -50,18 +50,18 @@ export async function getOrgProfileAction(): Promise<ActionResult<OrgProfile>> {
 
   const { data: profileData } = await supabase
     .from('users')
-    .select('active_organization_id')
+    .select('org_id')
     .eq('id', user.id)
     .single()
 
   const profile = profileData as any
-  if (!profile?.active_organization_id) return err('Organización no encontrada')
+  if (!profile?.org_id) return err('Organización no encontrada')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: orgData, error } = await (supabase as any)
     .from('organizations')
     .select('id, name, slug, timezone, logo_url')
-    .eq('id', profile.active_organization_id)
+    .eq('id', profile.org_id)
     .single()
 
   if (error || !orgData) return err('Error al obtener el perfil de la organización')
@@ -77,12 +77,12 @@ export async function updateOrgProfileAction(
 
   const { data: profileData } = await supabase
     .from('users')
-    .select('active_organization_id, role')
+    .select('org_id, role')
     .eq('id', user.id)
     .single()
 
   const profile = profileData as any
-  if (!profile?.active_organization_id) return err('Organización no encontrada')
+  if (!profile?.org_id) return err('Organización no encontrada')
   if (!['admin', 'owner', 'superadmin'].includes(profile.role)) {
     return err('No tienes permiso para editar el perfil de la organización')
   }
@@ -91,7 +91,7 @@ export async function updateOrgProfileAction(
   const { error } = await (supabase as any)
     .from('organizations')
     .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', profile.active_organization_id)
+    .eq('id', profile.org_id)
 
   if (error) return err('Error al actualizar el perfil de la organización')
   return ok(undefined)
@@ -166,14 +166,14 @@ export async function getSubscriptionStatusAction(): Promise<ActionResult<Subscr
 
   const { data: profileData } = await supabase
     .from('users')
-    .select('active_organization_id')
+    .select('org_id')
     .eq('id', user.id)
     .single()
 
   const profile = profileData as any
-  if (!profile?.active_organization_id) return err('Organización no encontrada')
+  if (!profile?.org_id) return err('Organización no encontrada')
 
-  const orgId = profile.active_organization_id
+  const orgId = profile.org_id
 
   // Get subscription
   const { data: subData } = await (supabase as any)
@@ -223,18 +223,18 @@ export async function getTeamMembersAction(): Promise<ActionResult<TeamMember[]>
 
   const { data: profileData } = await supabase
     .from('users')
-    .select('active_organization_id')
+    .select('org_id')
     .eq('id', user.id)
     .single()
 
   const profile = profileData as any
-  if (!profile?.active_organization_id) return err('Organización no encontrada')
+  if (!profile?.org_id) return err('Organización no encontrada')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: members, error } = await (supabase as any)
     .from('users')
     .select('id, full_name, role, created_at')
-    .eq('active_organization_id', profile.active_organization_id)
+    .eq('org_id', profile.org_id)
     .order('created_at', { ascending: true })
 
   if (error) return err('Error al obtener el equipo')

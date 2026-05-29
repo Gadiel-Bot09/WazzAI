@@ -238,11 +238,11 @@ export async function createOrganizationAction(
 
   const result = data as { org_id: string; org_slug: string }
 
-  // C2-FIX: Asegurar que active_organization_id está actualizado en la tabla users
+  // C2-FIX: Asegurar que org_id está actualizado en la tabla users
   // El trigger debería hacerlo, pero lo hacemos explícitamente como safety net
   await (admin as any)
     .from('users')
-    .update({ active_organization_id: result.org_id })
+    .update({ org_id: result.org_id })
     .eq('id', user.id)
 
   // C3-FIX: Crear columnas Kanban por defecto para la organización nueva

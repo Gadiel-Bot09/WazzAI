@@ -49,11 +49,11 @@ export async function getWhatsAppQRAction(): Promise<ActionResult<{ base64: stri
   // 2. Get user's active organization
   const { data: profile } = await (supabase as any)
     .from('users')
-    .select('active_organization_id')
+    .select('org_id')
     .eq('id', user.id)
     .single()
 
-  const orgId = (profile as any)?.active_organization_id
+  const orgId = (profile as any)?.org_id
   if (!orgId) return err('Organización no encontrada')
 
   try {
@@ -105,11 +105,11 @@ export async function disconnectWhatsAppAction(): Promise<ActionResult<void>> {
 
   const { data: profile } = await (supabase as any)
     .from('users')
-    .select('active_organization_id')
+    .select('org_id')
     .eq('id', user.id)
     .single()
 
-  const orgId = (profile as any)?.active_organization_id
+  const orgId = (profile as any)?.org_id
   if (!orgId) return err('Organización no encontrada')
 
   try {

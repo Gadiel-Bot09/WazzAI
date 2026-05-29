@@ -17,12 +17,12 @@ async function AISettingsData() {
   // Get user's org and their whatsapp instance
   const { data: profileData } = await supabase
     .from('users')
-    .select('active_organization_id')
+    .select('org_id')
     .eq('id', user.id)
     .single()
 
   const profile = profileData as any
-  if (!profile?.active_organization_id) {
+  if (!profile?.org_id) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
         Completa el onboarding para acceder a la configuración de IA.
@@ -35,7 +35,7 @@ async function AISettingsData() {
   const { data: instanceData } = await (supabase as any)
     .from('whatsapp_instances')
     .select('id')
-    .eq('org_id', profile.active_organization_id)
+    .eq('org_id', profile.org_id)
     .single()
 
   const instance = instanceData as any
