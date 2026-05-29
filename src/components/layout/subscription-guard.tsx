@@ -29,12 +29,27 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!billing) return <>{children}</>
+  // I2-FIX: Si no hay billing data (nuevo usuario sin subscripción aún), mostrar trial banner
+  // y dejar pasar — NO bloquear. El bloqueo solo aplica cuando hay una sub expirada/cancelada.
+  if (!billing) {
+    return (
+      <>
+        <div className="bg-amber-100 text-amber-900 px-4 py-2 text-sm flex items-center justify-center gap-2 font-medium z-50 shrink-0">
+          <AlertCircle className="w-4 h-4" />
+          Período de prueba activo — 14 días de acceso gratuito.
+          <Link href="/dashboard/settings?tab=suscripcion" className="underline font-bold ml-2">Ver detalles</Link>
+        </div>
+        <div className="flex flex-col flex-1 h-full overflow-hidden">
+          {children}
+        </div>
+      </>
+    )
+  }
 
   // Determine if blocked
   const isTrial = billing.status === 'trialing'
   const trialExpired = isTrial && billing.trialEnd && isPast(parseISO(billing.trialEnd))
-  const isBlocked = billing.status === 'past_due' || billing.status === 'canceled' || trialExpired
+  const isBlocked = billing.status === 'past_due' || billing.status === 'canceled' || trialExpired === true
 
   // Determine days left in trial
   const daysLeft = billing.trialEnd && isTrial 

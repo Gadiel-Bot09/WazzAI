@@ -1,9 +1,40 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { evolutionClient } from '@/lib/evolution/client'
 import { ok, err } from '@/lib/utils/server'
 import type { ActionResult } from '@/lib/utils/server'
+
+/**
+ * Ensures the whatsapp_instances record exists in DB for the given org.
+ * C4-FIX: Always persist the instance so AI config can reference it.
+ */
+async function ensureInstanceInDB(orgId: string): Promise<string | null> {
+  const admin = createAdminClient()
+  // Check if already exists
+  const { data: existing } = await (admin as any)
+    .from('whatsapp_instances')
+    .select('id')
+    .eq('org_id', orgId)
+    .single()
+
+  if (existing?.id) return existing.id
+
+  // Create it
+  const instanceName = `wazzai_${orgId.replace(/-/g, '')}`
+  const { data: created } = await (admin as any)
+    .from('whatsapp_instances')
+    .insert({
+      org_id: orgId,
+      instance_name: instanceName,
+      status: 'connecting',
+    })
+    .select('id')
+    .single()
+
+  return created?.id ?? null
+}
 
 /**
  * Gets or creates the WhatsApp QR Code for the current user's organization
@@ -16,35 +47,41 @@ export async function getWhatsAppQRAction(): Promise<ActionResult<{ base64: stri
   if (!user) return err('No autorizado')
 
   // 2. Get user's active organization
-  const { data: profile } = await supabase
+  const { data: profile } = await (supabase as any)
     .from('users')
     .select('active_organization_id')
     .eq('id', user.id)
     .single()
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const orgId = (profile as any)?.active_organization_id
   if (!orgId) return err('Organización no encontrada')
 
   try {
-    // 3. Try to get connection state first
+    // 3. Ensure instance exists in DB (C4-FIX)
+    await ensureInstanceInDB(orgId)
+
+    // 4. Try to get connection state first
     const state = await evolutionClient.getConnectionState(orgId)
     
-    // Si no existe la instancia, la creamos
+    // Si no existe la instancia en Evolution, la creamos
     if (!state) {
       const creationResponse = await evolutionClient.createInstance(orgId)
-      // En Evolution v2, la respuesta de creación suele traer el qrCode en base64
       if (creationResponse.qrcode?.base64) {
         return ok({ base64: creationResponse.qrcode.base64, state: 'connecting' })
       }
     }
 
-    // 4. Si ya existe, comprobamos estado
+    // 5. Si ya está conectado, actualizar estado en DB
     if (state?.status === 'open') {
+      const admin = createAdminClient()
+      await (admin as any)
+        .from('whatsapp_instances')
+        .update({ status: 'open', connected_at: new Date().toISOString() })
+        .eq('org_id', orgId)
       return ok({ base64: null, state: 'open' })
     }
 
-    // 5. Si no está conectado, obtenemos el QR
+    // 6. Si no está conectado, obtenemos el QR
     const qrResponse = await evolutionClient.getQRCode(orgId)
     
     return ok({ 
@@ -57,3 +94,35 @@ export async function getWhatsAppQRAction(): Promise<ActionResult<{ base64: stri
     return err('Error de comunicación con el servicio de WhatsApp')
   }
 }
+
+/**
+ * Disconnects the WhatsApp session for the current user's org
+ */
+export async function disconnectWhatsAppAction(): Promise<ActionResult<void>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return err('No autorizado')
+
+  const { data: profile } = await (supabase as any)
+    .from('users')
+    .select('active_organization_id')
+    .eq('id', user.id)
+    .single()
+
+  const orgId = (profile as any)?.active_organization_id
+  if (!orgId) return err('Organización no encontrada')
+
+  try {
+    await evolutionClient.logoutInstance(orgId)
+    const admin = createAdminClient()
+    await (admin as any)
+      .from('whatsapp_instances')
+      .update({ status: 'disconnected', connected_at: null })
+      .eq('org_id', orgId)
+    return ok(undefined)
+  } catch (e) {
+    console.error('disconnectWhatsAppAction error:', e)
+    return err('Error al desconectar WhatsApp')
+  }
+}
+

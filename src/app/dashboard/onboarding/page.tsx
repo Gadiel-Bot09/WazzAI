@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle2, ChevronRight, MessageSquare, Bot, Users } from 'lucide-react'
 import { WhatsAppConnectionStatus } from '@/components/whatsapp/qr-scanner'
+import { updateAIConfigAction } from '@/actions/ai'
 
 // Pasos del onboarding
 const STEPS = [
@@ -45,6 +46,28 @@ export default function OnboardingPage() {
     }
     
     setIsLoading(false)
+  }
+
+  // C5-FIX: Step 3 — Save AI config
+  async function handleStep3(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+
+    const formData = new FormData(e.currentTarget)
+    const model = formData.get('model') as string
+    const tone = formData.get('tone') as string
+    const system_prompt = formData.get('system_prompt') as string
+
+    // Necesitamos el instanceId — lo buscamos vía la instancia de WhatsApp si existe
+    // Si no hay instancia aún, guardamos config global (org-level) con instanceId vacío
+    // La action updateAIConfigAction acepta cualquier instanceId, usamos el orgId como fallback
+    if (orgData?.id) {
+      await updateAIConfigAction(orgData.id, { model, tone, system_prompt, is_active: true })
+    }
+
+    setIsLoading(false)
+    setStep(4)
   }
 
   // Final Step: Complete Onboarding
@@ -164,43 +187,56 @@ export default function OnboardingPage() {
 
         {step === 3 && (
           <Card className="border-border/50 shadow-lg">
-            <CardHeader>
-              <CardTitle>Configura la IA</CardTitle>
-              <CardDescription>
-                Define cómo responderá la inteligencia artificial a tus clientes.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Modelo de IA</Label>
-                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  <option value="gpt-4o">GPT-4o (Recomendado - Rápido y preciso)</option>
-                  <option value="gpt-4o-mini">GPT-4o Mini (Económico)</option>
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Tono de conversación</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <label className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-accent">
-                    <input type="radio" name="tone" value="professional" className="accent-primary" defaultChecked />
-                    <span className="text-sm font-medium">Profesional</span>
-                  </label>
-                  <label className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-accent">
-                    <input type="radio" name="tone" value="friendly" className="accent-primary" />
-                    <span className="text-sm font-medium">Amigable / Casual</span>
-                  </label>
+            <form onSubmit={handleStep3}>
+              <CardHeader>
+                <CardTitle>Configura la IA</CardTitle>
+                <CardDescription>
+                  Define cómo responderá la inteligencia artificial a tus clientes.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="model">Modelo de IA</Label>
+                  <select id="model" name="model" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={isLoading}>
+                    <option value="gpt-4o-mini">GPT-4o Mini (Rápido y económico)</option>
+                    <option value="gpt-4o">GPT-4o (Más preciso)</option>
+                  </select>
                 </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="ghost" onClick={() => setStep(2)} disabled={isLoading}>
-                Atrás
-              </Button>
-              <Button onClick={() => setStep(4)}>
-                Siguiente paso <ChevronRight className="ml-2 w-4 h-4" />
-              </Button>
-            </CardFooter>
+                <div className="space-y-2">
+                  <Label>Tono de conversación</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex items-center space-x-3 border rounded-lg p-3 cursor-pointer hover:bg-accent">
+                      <input type="radio" name="tone" value="professional" className="accent-primary" defaultChecked />
+                      <span className="text-sm font-medium">Profesional</span>
+                    </label>
+                    <label className="flex items-center space-x-3 border rounded-lg p-3 cursor-pointer hover:bg-accent">
+                      <input type="radio" name="tone" value="friendly" className="accent-primary" />
+                      <span className="text-sm font-medium">Amigable</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="system_prompt">Descripción del negocio (opcional)</Label>
+                  <textarea
+                    id="system_prompt"
+                    name="system_prompt"
+                    placeholder="Somos una empresa de... nuestros productos son..."
+                    rows={3}
+                    disabled={isLoading}
+                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground">La IA usará esto para responder con contexto de tu negocio.</p>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between">
+                <Button type="button" variant="ghost" onClick={() => setStep(2)} disabled={isLoading}>
+                  Atrás
+                </Button>
+                <Button type="submit" isLoading={isLoading}>
+                  Siguiente paso <ChevronRight className="ml-2 w-4 h-4" />
+                </Button>
+              </CardFooter>
+            </form>
           </Card>
         )}
 

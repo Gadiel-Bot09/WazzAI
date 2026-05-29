@@ -238,6 +238,22 @@ export async function createOrganizationAction(
 
   const result = data as { org_id: string; org_slug: string }
 
+  // C2-FIX: Asegurar que active_organization_id está actualizado en la tabla users
+  // El trigger debería hacerlo, pero lo hacemos explícitamente como safety net
+  await (admin as any)
+    .from('users')
+    .update({ active_organization_id: result.org_id })
+    .eq('id', user.id)
+
+  // C3-FIX: Crear columnas Kanban por defecto para la organización nueva
+  const defaultColumns = [
+    { org_id: result.org_id, name: 'Nuevo', color: '#3b82f6', position: 1000 },
+    { org_id: result.org_id, name: 'En proceso', color: '#f59e0b', position: 2000 },
+    { org_id: result.org_id, name: 'Calificado', color: '#8b5cf6', position: 3000 },
+    { org_id: result.org_id, name: 'Cerrado', color: '#10b981', position: 4000 },
+  ]
+  await (admin as any).from('kanban_columns').insert(defaultColumns)
+
   return ok({ orgId: result.org_id, orgSlug: result.org_slug })
 }
 
@@ -247,12 +263,21 @@ export async function createOrganizationAction(
 
 export async function completeOnboardingAction(): Promise<ActionResult<void>> {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return err('No autenticado')
 
-  const { error } = await supabase.auth.updateUser({
+  // C1-FIX: Actualizar el metadata de Auth (para el middleware) Y la tabla users
+  const { error: authError } = await supabase.auth.updateUser({
     data: { onboarding_completed: true },
   })
+  if (authError) return err('Error al completar el onboarding')
 
-  if (error) return err('Error al completar el onboarding')
+  // También actualizar la tabla pública users como safety net
+  const admin = createAdminClient()
+  await (admin as any)
+    .from('users')
+    .update({ onboarding_completed: true })
+    .eq('id', user.id)
 
   revalidatePath('/dashboard')
   return ok(undefined)

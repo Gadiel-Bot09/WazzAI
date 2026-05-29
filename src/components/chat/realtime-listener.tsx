@@ -8,6 +8,9 @@ interface RealtimeListenerProps {
   orgId: string
 }
 
+// Custom event dispatched when a new message arrives — ChatWindow listens to this
+export const REALTIME_NEW_MESSAGE_EVENT = 'wazzai:new_message'
+
 export function RealtimeListener({ orgId }: RealtimeListenerProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -15,7 +18,7 @@ export function RealtimeListener({ orgId }: RealtimeListenerProps) {
   useEffect(() => {
     if (!orgId) return
 
-    // Suscribirse a cambios en la tabla messages
+    // I1-FIX: On new message — dispatch custom event for ChatWindow + refresh conversation list
     const messagesChannel = supabase
       .channel('messages_changes')
       .on(
@@ -27,46 +30,34 @@ export function RealtimeListener({ orgId }: RealtimeListenerProps) {
           filter: `org_id=eq.${orgId}`
         },
         (payload) => {
-          console.log('New message received:', payload)
-          // Refrescar los datos actuales (Server Components)
+          // Notify active ChatWindow (if open) with the conversation_id
+          const conversationId = (payload.new as any)?.conversation_id
+          if (conversationId) {
+            window.dispatchEvent(
+              new CustomEvent(REALTIME_NEW_MESSAGE_EVENT, { detail: { conversationId } })
+            )
+          }
+          // Also refresh server components (conversation list timestamps/previews)
           router.refresh()
         }
       )
       .subscribe()
 
-    // Suscribirse a cambios en la tabla conversations
     const conversationsChannel = supabase
       .channel('conversations_changes')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversations',
-          filter: `org_id=eq.${orgId}`
-        },
-        (payload) => {
-          console.log('Conversation updated:', payload)
-          router.refresh()
-        }
+        { event: '*', schema: 'public', table: 'conversations', filter: `org_id=eq.${orgId}` },
+        () => { router.refresh() }
       )
       .subscribe()
 
-    // Suscribirse a cambios en la tabla leads
     const leadsChannel = supabase
       .channel('leads_changes')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'leads',
-          filter: `org_id=eq.${orgId}`
-        },
-        (payload) => {
-          console.log('Lead updated:', payload)
-          router.refresh()
-        }
+        { event: '*', schema: 'public', table: 'leads', filter: `org_id=eq.${orgId}` },
+        () => { router.refresh() }
       )
       .subscribe()
 
@@ -77,6 +68,5 @@ export function RealtimeListener({ orgId }: RealtimeListenerProps) {
     }
   }, [orgId, router, supabase])
 
-  // Componente invisible, solo maneja lógica
   return null
 }

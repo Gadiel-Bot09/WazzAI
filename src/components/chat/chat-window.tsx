@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageBubble } from './message-bubble'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { REALTIME_NEW_MESSAGE_EVENT } from './realtime-listener'
 
 interface ChatWindowProps {
   conversationId: string
@@ -32,19 +33,31 @@ export function ChatWindow({ conversationId, contactName, contactPhone, isAIActi
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const fetchMessages = async () => {
-    setLoading(true)
+  const fetchMessages = useCallback(async () => {
     const res = await getMessagesAction(conversationId)
     if (res.success) {
       setMessages(res.data)
     }
     setLoading(false)
     scrollToBottom()
-  }
+  }, [conversationId])
 
   useEffect(() => {
+    setLoading(true)
     fetchMessages()
-  }, [conversationId])
+  }, [fetchMessages])
+
+  // I1-FIX: Listen for realtime new message events from RealtimeListener
+  useEffect(() => {
+    function handleNewMessage(e: Event) {
+      const event = e as CustomEvent
+      if (event.detail?.conversationId === conversationId) {
+        fetchMessages()
+      }
+    }
+    window.addEventListener(REALTIME_NEW_MESSAGE_EVENT, handleNewMessage)
+    return () => window.removeEventListener(REALTIME_NEW_MESSAGE_EVENT, handleNewMessage)
+  }, [conversationId, fetchMessages])
 
   const scrollToBottom = () => {
     setTimeout(() => {
