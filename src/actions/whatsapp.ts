@@ -23,15 +23,19 @@ async function ensureInstanceInDB(orgId: string): Promise<string | null> {
 
   // Create it
   const instanceName = `wazzai_${orgId.replace(/-/g, '')}`
-  const { data: created } = await (admin as any)
+  const { data: created, error } = await (admin as any)
     .from('whatsapp_instances')
     .insert({
       org_id: orgId,
-      instance_name: instanceName,
+      name: instanceName,
       status: 'connecting',
     })
     .select('id')
     .single()
+
+  if (error) {
+    console.error('ensureInstanceInDB insert error:', error)
+  }
 
   return created?.id ?? null
 }
