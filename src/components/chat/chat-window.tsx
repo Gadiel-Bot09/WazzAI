@@ -24,6 +24,8 @@ interface ChatWindowProps {
   contactPhone: string
   isAIActive?: boolean
   status?: 'open' | 'closed' | 'pending'
+  assignedUser?: { full_name: string, avatar_url: string } | null
+  showAssignedAgent?: boolean
 }
 
 export function ChatWindow({
@@ -32,6 +34,8 @@ export function ChatWindow({
   contactPhone,
   isAIActive: initialAIActive = false,
   status: initialStatus = 'open',
+  assignedUser,
+  showAssignedAgent = false,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -145,7 +149,26 @@ export function ChatWindow({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
+          {/* Agent Display */}
+          {showAssignedAgent && assignedUser && (
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-full border border-primary/10">
+              <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden shrink-0">
+                {assignedUser.avatar_url ? (
+                  <img src={assignedUser.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-[10px] font-medium text-primary">
+                    {assignedUser.full_name?.charAt(0)?.toUpperCase() || 'A'}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs font-medium text-primary">
+                Atendido por {assignedUser.full_name?.split(' ')[0]}
+              </span>
+            </div>
+          )}
+
+          {/* AI Toggle */}
           {!isClosed && (
             <TooltipProvider>
               <Tooltip>

@@ -22,6 +22,7 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Trash2,
 } from 'lucide-react'
 import {
   closeConversationAction,
@@ -29,6 +30,7 @@ import {
   transferConversationAction,
   scheduleReminderAction,
   getOrgUsersAction,
+  deleteConversationAction,
 } from '@/actions/conversation-actions'
 
 interface ConversationActionsMenuProps {
@@ -37,7 +39,7 @@ interface ConversationActionsMenuProps {
   onStatusChange?: () => void
 }
 
-type ActiveModal = 'none' | 'close' | 'transfer' | 'reminder'
+type ActiveModal = 'none' | 'close' | 'transfer' | 'reminder' | 'delete'
 
 function Feedback({ success, message }: { success: boolean; message: string }) {
   return (
@@ -111,6 +113,18 @@ export function ConversationActionsMenu({
     setLoading(false)
     showFeedback(res.success, res.success ? 'Conversación reabierta ✓' : (res.error ?? 'Error'))
     setMenuOpen(false)
+  }
+
+  async function handleDelete() {
+    setLoading(true)
+    const res = await deleteConversationAction(conversationId)
+    setLoading(false)
+    if (!res.success) {
+      showFeedback(false, res.error ?? 'Error al eliminar')
+    } else {
+      showFeedback(true, 'Conversación eliminada ✓')
+      setModal('none')
+    }
   }
 
   async function handleTransfer() {
@@ -191,17 +205,33 @@ export function ConversationActionsMenu({
                     <Bell className="w-4 h-4 text-violet-500" />
                     Programar recordatorio
                   </button>
-                  <div className="my-1 border-t" />
+                  <button
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-left text-red-600 dark:text-red-400"
+                    onClick={() => { setModal('delete'); setMenuOpen(false) }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Eliminar conversación
+                  </button>
                 </>
               )}
               {status === 'closed' && (
-                <button
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-left"
-                  onClick={handleReopen}
-                >
-                  <RotateCcw className="w-4 h-4 text-green-500" />
-                  Reabrir conversación
-                </button>
+                <>
+                  <button
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-left"
+                    onClick={handleReopen}
+                  >
+                    <RotateCcw className="w-4 h-4 text-green-500" />
+                    Reabrir conversación
+                  </button>
+                  <div className="my-1 border-t" />
+                  <button
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-left text-red-600 dark:text-red-400"
+                    onClick={() => { setModal('delete'); setMenuOpen(false) }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Eliminar conversación
+                  </button>
+                </>
               )}
             </div>
           </>
@@ -249,6 +279,37 @@ export function ConversationActionsMenu({
             >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Cerrar conversación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DELETE DIALOG */}
+      <Dialog open={modal === 'delete'} onOpenChange={open => !open && setModal('none')}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Eliminar conversación
+            </DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar permanentemente esta conversación? Esta acción no se puede deshacer y borrará todos los mensajes asociados.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-3">
+            {feedback && <Feedback success={feedback.success} message={feedback.message} />}
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setModal('none')}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={loading}
+            >
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>

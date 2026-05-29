@@ -242,3 +242,38 @@ export async function getSurveyReportAction(opts: {
 
   return ok({ surveys, total: count ?? 0, avgScore, responseRate, distribution })
 }
+
+// ─── DELETE CONVERSATION ──────────────────────────────────────────────────────
+
+export async function deleteConversationAction(
+  conversationId: string
+): Promise<ActionResult<void>> {
+  const ctx = await getUserAndOrg()
+  if (!ctx || !ctx.orgId) return err('No autorizado')
+
+  const admin = createAdminClient()
+  
+  // Verify ownership
+  const { data: conv } = await (admin as any)
+    .from('conversations')
+    .select('org_id')
+    .eq('id', conversationId)
+    .single()
+
+  if (!conv || conv.org_id !== ctx.orgId) {
+    return err('Conversación no encontrada')
+  }
+
+  const { error } = await (admin as any)
+    .from('conversations')
+    .delete()
+    .eq('id', conversationId)
+
+  if (error) {
+    console.error('deleteConversationAction error:', error)
+    return err('Error al eliminar la conversación')
+  }
+
+  revalidatePath('/dashboard/chat')
+  return ok(undefined)
+}

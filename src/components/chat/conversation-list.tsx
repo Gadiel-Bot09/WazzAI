@@ -12,6 +12,7 @@ interface ConversationListProps {
   conversations: any[]
   activeId: string | null
   onSelect: (id: string) => void
+  showAssignedAgent?: boolean
 }
 
 const FILTERS: { key: Filter; label: string }[] = [
@@ -21,7 +22,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'closed', label: 'Cerrados' },
 ]
 
-export function ConversationList({ conversations, activeId, onSelect }: ConversationListProps) {
+export function ConversationList({ conversations, activeId, onSelect, showAssignedAgent }: ConversationListProps) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
 
@@ -105,11 +106,18 @@ export function ConversationList({ conversations, activeId, onSelect }: Conversa
                       <Bot className="w-3 h-3 text-violet-500 flex-shrink-0" aria-label="IA activa" />
                     )}
                   </div>
-                  {conv.last_message_at && (
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-                      {formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true, locale: es })}
-                    </span>
-                  )}
+                  <div className="flex flex-col items-end gap-0.5 ml-2 shrink-0">
+                    {conv.last_message_at && (
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                        {formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true, locale: es })}
+                      </span>
+                    )}
+                    {showAssignedAgent && conv.assigned_user && (
+                      <span className="text-[10px] text-primary/80 font-medium whitespace-nowrap truncate max-w-[80px]">
+                        @{conv.assigned_user.full_name?.split(' ')[0] || 'Agente'}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex w-full items-center justify-between gap-2">

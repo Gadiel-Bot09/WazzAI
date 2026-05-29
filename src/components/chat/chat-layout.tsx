@@ -6,9 +6,10 @@ import { ChatWindow } from './chat-window'
 
 interface ChatLayoutProps {
   initialConversations: any[]
+  showAssignedAgent: boolean
 }
 
-export function ChatLayout({ initialConversations }: ChatLayoutProps) {
+export function ChatLayout({ initialConversations, showAssignedAgent }: ChatLayoutProps) {
   const [conversations, setConversations] = useState(initialConversations)
   const [activeId, setActiveId] = useState<string | null>(
     initialConversations.length > 0 ? initialConversations[0].id : null
@@ -28,6 +29,7 @@ export function ChatLayout({ initialConversations }: ChatLayoutProps) {
             conversations={conversations} 
             activeId={activeId} 
             onSelect={setActiveId} 
+            showAssignedAgent={showAssignedAgent}
           />
         </div>
       </div>
@@ -40,6 +42,9 @@ export function ChatLayout({ initialConversations }: ChatLayoutProps) {
             contactName={activeConversation.contact?.name || activeConversation.contact?.phone_number || 'Desconocido'} 
             contactPhone={activeConversation.contact?.phone_number || ''}
             isAIActive={activeConversation.is_ai_active ?? false}
+            status={activeConversation.status}
+            assignedUser={activeConversation.assigned_user}
+            showAssignedAgent={showAssignedAgent}
           />
         ) : (
           <div className="flex h-full items-center justify-center flex-col text-muted-foreground p-8 text-center bg-slate-50 dark:bg-background">

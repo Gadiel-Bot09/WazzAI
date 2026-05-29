@@ -15,6 +15,11 @@ export async function getConversationsAction(): Promise<ActionResult<any[]>> {
   const profile = profileData as any
   if (!profile?.org_id) return err('Organización no encontrada')
 
+  // Get Org Settings for show_assigned_agent
+  const { data: orgData } = await supabase.from('organizations').select('metadata').eq('id', profile.org_id).single()
+  const meta = (orgData?.metadata as any) || {}
+  const showAssignedAgent = !!meta.show_assigned_agent
+
   const { data: conversations, error } = await supabase
     .from('conversations')
     .select(`
@@ -24,7 +29,9 @@ export async function getConversationsAction(): Promise<ActionResult<any[]>> {
       last_message_preview,
       unread_count,
       status,
-      contact:contacts(*)
+      contact:contacts(*),
+      assigned_to,
+      assigned_user:users!conversations_assigned_to_fkey(full_name, avatar_url)
     `)
     .eq('org_id', profile.org_id)
     .order('last_message_at', { ascending: false })
@@ -34,7 +41,7 @@ export async function getConversationsAction(): Promise<ActionResult<any[]>> {
     return err('Error al obtener conversaciones')
   }
 
-  return ok(conversations)
+  return ok({ conversations, showAssignedAgent })
 }
 
 export async function getMessagesAction(conversationId: string): Promise<ActionResult<any[]>> {

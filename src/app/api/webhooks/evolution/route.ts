@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateAIResponse, saveAndSendAIMessage } from '@/lib/ai/rag'
+import { processAutomations } from '@/lib/automations/engine'
 
 export async function POST(req: Request) {
   try {
@@ -299,25 +300,38 @@ export async function POST(req: Request) {
           .single()
 
         if (convCheck?.is_ai_active && convCheck?.instance_id) {
-          // Disparar en background — no bloqueamos la respuesta del webhook
-          generateAIResponse({
-            conversationId,
+          // Evaluar Flujos primero
+          const isFirstMessage = existingConv ? false : true
+          const handledByFlow = await processAutomations({
             orgId: org.id,
-            instanceId: convCheck.instance_id,
-            contactPhone: phone,
-            incomingMessage: textContent,
+            contactId: contactId,
+            conversationId,
+            phone,
+            textContent,
+            isFirstMessage
           })
-            .then(async ({ reply, usedFallback: _ }) => {
-              if (reply) {
-                await saveAndSendAIMessage({
-                  conversationId,
-                  orgId: org.id,
-                  contactPhone: phone,
-                  replyText: reply,
-                })
-              }
+
+          if (!handledByFlow) {
+            // Disparar AI RAG en background
+            generateAIResponse({
+              conversationId,
+              orgId: org.id,
+              instanceId: convCheck.instance_id,
+              contactPhone: phone,
+              incomingMessage: textContent,
             })
-            .catch(e => console.error('[Webhook] RAG pipeline error:', e))
+              .then(async ({ reply, usedFallback: _ }) => {
+                if (reply) {
+                  await saveAndSendAIMessage({
+                    conversationId,
+                    orgId: org.id,
+                    contactPhone: phone,
+                    replyText: reply,
+                  })
+                }
+              })
+              .catch(e => console.error('[Webhook] RAG pipeline error:', e))
+          }
         }
       }
 

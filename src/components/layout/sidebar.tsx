@@ -16,6 +16,7 @@ import {
   Users,
   MessageSquareText,
   Star,
+  Workflow,
 } from 'lucide-react'
 
 const navItems = [
@@ -53,6 +54,11 @@ const navItems = [
     label: 'Encuestas',
     href: '/dashboard/analytics/surveys',
     icon: Star,
+  },
+  {
+    label: 'Automatizaciones',
+    href: '/dashboard/automations',
+    icon: Workflow,
   },
 ]
 

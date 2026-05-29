@@ -13,6 +13,7 @@ export interface OrgProfile {
   slug: string
   timezone: string
   logo_url: string | null
+  show_assigned_agent: boolean
 }
 
 export interface AccountProfile {
@@ -60,16 +61,21 @@ export async function getOrgProfileAction(): Promise<ActionResult<OrgProfile>> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: orgData, error } = await (supabase as any)
     .from('organizations')
-    .select('id, name, slug, timezone, logo_url')
+    .select('id, name, slug, timezone, logo_url, metadata')
     .eq('id', profile.org_id)
     .single()
 
   if (error || !orgData) return err('Error al obtener el perfil de la organización')
-  return ok(orgData as OrgProfile)
+  
+  const metadata = orgData.metadata || {}
+  return ok({
+    ...orgData,
+    show_assigned_agent: !!metadata.show_assigned_agent
+  } as OrgProfile)
 }
 
 export async function updateOrgProfileAction(
-  updates: Partial<{ name: string; timezone: string; logo_url: string }>
+  updates: Partial<{ name: string; timezone: string; logo_url: string; show_assigned_agent: boolean }>
 ): Promise<ActionResult<void>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -87,10 +93,22 @@ export async function updateOrgProfileAction(
     return err('No tienes permiso para editar el perfil de la organización')
   }
 
+  // Fetch current metadata if show_assigned_agent is being updated
+  let finalUpdates: any = { ...updates, updated_at: new Date().toISOString() }
+  
+  if (updates.show_assigned_agent !== undefined) {
+    const admin = createAdminClient()
+    const { data: org } = await (admin as any).from('organizations').select('metadata').eq('id', profile.org_id).single()
+    const meta = (org?.metadata as Record<string, any>) || {}
+    meta.show_assigned_agent = updates.show_assigned_agent
+    finalUpdates.metadata = meta
+    delete finalUpdates.show_assigned_agent // Remove from root
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from('organizations')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(finalUpdates)
     .eq('id', profile.org_id)
 
   if (error) return err('Error al actualizar el perfil de la organización')

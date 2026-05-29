@@ -5,7 +5,8 @@ import { updateOrgProfileAction, OrgProfile } from '@/actions/settings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Building2, Globe, CheckCircle, AlertCircle } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Building2, Globe, CheckCircle, AlertCircle, Eye } from 'lucide-react'
 
 const TIMEZONES = [
   'America/Bogota',
@@ -42,6 +43,7 @@ interface OrgProfileFormProps {
 export function OrgProfileForm({ initialData }: OrgProfileFormProps) {
   const [name, setName] = useState(initialData.name)
   const [timezone, setTimezone] = useState(initialData.timezone || 'America/Bogota')
+  const [showAssignedAgent, setShowAssignedAgent] = useState(initialData.show_assigned_agent ?? false)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -50,7 +52,7 @@ export function OrgProfileForm({ initialData }: OrgProfileFormProps) {
     setIsLoading(true)
     setMessage(null)
 
-    const res = await updateOrgProfileAction({ name, timezone })
+    const res = await updateOrgProfileAction({ name, timezone, show_assigned_agent: showAssignedAgent })
     if (res.success) {
       setMessage({ type: 'success', text: '¡Perfil de empresa actualizado exitosamente!' })
     } else {
@@ -107,6 +109,25 @@ export function OrgProfileForm({ initialData }: OrgProfileFormProps) {
               <option key={tz} value={tz}>{tz}</option>
             ))}
           </select>
+        </div>
+
+        <div className="space-y-4 pt-2 pb-2">
+          <div className="flex items-center justify-between border rounded-lg p-4 bg-card">
+            <div className="space-y-1">
+              <Label className="flex items-center gap-2 text-base">
+                <Eye className="w-4 h-4 text-muted-foreground" />
+                Mostrar agente asignado
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Si está activado, el nombre del agente que está atendiendo el chat será visible en la cabecera del chat en vivo.
+              </p>
+            </div>
+            <Switch
+              checked={showAssignedAgent}
+              onCheckedChange={setShowAssignedAgent}
+              disabled={isLoading}
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
