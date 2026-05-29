@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       // Lo ideal es tener una tabla "channels" o buscar orgId.
       // En el esquema Módulo 1 pusimos 'whatsapp_instances' o podemos buscar directo.
       // Por simplicidad en la prueba de concepto, busquemos todas las orgs y hagamos match.
-      const { data: orgs } = await supabaseAdmin.from('organizations').select('id')
+      const { data: orgs } = await supabaseAdmin.from('organizations').select('id, metadata')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const org = (orgs as any[])?.find(o => `wazzai_${o.id.replace(/-/g, '')}` === instance) as any
       
@@ -84,6 +84,17 @@ export async function POST(req: Request) {
         console.error(`No org found for instance ${instance}`)
         return NextResponse.json({ error: 'Org not found' }, { status: 404 })
       }
+
+      // ── Check if we should ignore group messages ────────────────────────────
+      const isGroup = key.remoteJid.includes('@g.us')
+      if (isGroup) {
+        const meta = (org.metadata as any) || {}
+        if (meta.ignore_groups === true) {
+          console.log(`[Webhook] Ignoring group message from ${key.remoteJid} for org ${org.id}`)
+          return NextResponse.json({ success: true, ignored: true, reason: 'group_ignored' })
+        }
+      }
+      // ───────────────────────────────────────────────────────────────────────
 
       // ── Check if this is a survey response ─────────────────────────────────
       const surveyScore = parseInt(textContent.trim(), 10)

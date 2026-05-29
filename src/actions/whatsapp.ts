@@ -131,3 +131,54 @@ export async function disconnectWhatsAppAction(): Promise<ActionResult<void>> {
   }
 }
 
+/**
+ * Get WhatsApp specific settings like ignoring groups
+ */
+export async function getWhatsAppSettingsAction(): Promise<ActionResult<{ ignoreGroups: boolean }>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return err('No autorizado')
+
+  const { data: profile } = await (supabase as any)
+    .from('users')
+    .select('org_id')
+    .eq('id', user.id)
+    .single()
+
+  const orgId = (profile as any)?.org_id
+  if (!orgId) return err('Organización no encontrada')
+
+  const admin = createAdminClient()
+  const { data: org } = await (admin as any).from('organizations').select('metadata').eq('id', orgId).single()
+  const meta = (org?.metadata as Record<string, any>) || {}
+  
+  return ok({ ignoreGroups: !!meta.ignore_groups })
+}
+
+/**
+ * Update WhatsApp specific settings like ignoring groups
+ */
+export async function updateWhatsAppSettingsAction(ignoreGroups: boolean): Promise<ActionResult<void>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return err('No autorizado')
+
+  const { data: profile } = await (supabase as any)
+    .from('users')
+    .select('org_id')
+    .eq('id', user.id)
+    .single()
+
+  const orgId = (profile as any)?.org_id
+  if (!orgId) return err('Organización no encontrada')
+
+  const admin = createAdminClient()
+  const { data: org } = await (admin as any).from('organizations').select('metadata').eq('id', orgId).single()
+  const meta = (org?.metadata as Record<string, any>) || {}
+  
+  meta.ignore_groups = ignoreGroups
+
+  await (admin as any).from('organizations').update({ metadata: meta }).eq('id', orgId)
+  return ok(undefined)
+}
+

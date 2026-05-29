@@ -2,13 +2,15 @@ import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { WhatsAppConnectionStatus } from '@/components/whatsapp/qr-scanner'
-import { Smartphone, Loader2, Info } from 'lucide-react'
+import { WhatsAppSettingsForm } from '@/components/whatsapp/whatsapp-settings'
+import { getWhatsAppSettingsAction } from '@/actions/whatsapp'
+import { Smartphone, Loader2, Info, Settings } from 'lucide-react'
 
 export const metadata = {
   title: 'WhatsApp | WazzAI',
 }
 
-type WaTab = 'conexion' | 'info'
+type WaTab = 'conexion' | 'configuracion' | 'info'
 
 interface PageProps {
   searchParams: Promise<{ tab?: string }>
@@ -16,6 +18,7 @@ interface PageProps {
 
 const WA_TABS: { id: WaTab; label: string; icon: any }[] = [
   { id: 'conexion', label: 'Conexión', icon: Smartphone },
+  { id: 'configuracion', label: 'Configuración', icon: Settings },
   { id: 'info', label: 'Información', icon: Info },
 ]
 
@@ -103,6 +106,18 @@ export default async function WhatsAppPage({ searchParams }: PageProps) {
                 <WhatsAppConnectionStatus orgId={orgId} />
               </Suspense>
             </div>
+          ) : currentTab === 'configuracion' ? (
+            <div className="bg-card rounded-xl border shadow-sm p-6">
+              <div className="mb-6 border-b pb-4">
+                <h2 className="font-semibold text-lg flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-primary" />
+                  Ajustes de mensajería
+                </h2>
+              </div>
+              <Suspense fallback={<div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+                <SettingsWrapper />
+              </Suspense>
+            </div>
           ) : (
             <div className="bg-card rounded-xl border shadow-sm p-6 space-y-6">
               <div>
@@ -148,3 +163,12 @@ export default async function WhatsAppPage({ searchParams }: PageProps) {
     </div>
   )
 }
+
+async function SettingsWrapper() {
+  const res = await getWhatsAppSettingsAction()
+  if (!res.success) {
+    return <div className="text-destructive text-sm">{res.error}</div>
+  }
+  return <WhatsAppSettingsForm initialIgnoreGroups={res.data.ignoreGroups} />
+}
+
