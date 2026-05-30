@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getInstancesListAction, createWhatsAppInstanceAction } from '@/actions/whatsapp'
+import { getInstancesListAction, createWhatsAppInstanceAction, deleteWhatsAppInstanceAction } from '@/actions/whatsapp'
 import { WhatsAppConnectionStatus } from '@/components/whatsapp/qr-scanner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,7 @@ export function InstanceManager() {
   const [isCreating, setIsCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const fetchInstances = async () => {
     setLoading(true)
@@ -44,6 +45,23 @@ export function InstanceManager() {
     } else {
       alert(res.error)
     }
+  }
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    if (!confirm('¿Estás seguro de que deseas eliminar esta instancia de WhatsApp permanentemente? Esto no se puede deshacer.')) return
+    
+    setDeletingId(id)
+    const res = await deleteWhatsAppInstanceAction(id)
+    if (res.success) {
+      await fetchInstances()
+      if (selectedInstanceId === id) {
+        setSelectedInstanceId(null)
+      }
+    } else {
+      alert(res.error)
+    }
+    setDeletingId(null)
   }
 
   if (loading) {
@@ -122,10 +140,21 @@ export function InstanceManager() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mb-4">ID: {inst.id}</p>
-              <Button variant="secondary" size="sm" className="w-full">
-                <Settings2 className="w-3.5 h-3.5 mr-2" />
-                Gestionar Conexión
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" className="w-full">
+                  <Settings2 className="w-3.5 h-3.5 mr-2" />
+                  Gestionar
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="icon" 
+                  className="shrink-0"
+                  disabled={deletingId === inst.id}
+                  onClick={(e) => handleDelete(e, inst.id)}
+                >
+                  {deletingId === inst.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                </Button>
+              </div>
             </div>
           ))}
         </div>

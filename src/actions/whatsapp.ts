@@ -172,6 +172,39 @@ export async function disconnectWhatsAppAction(instanceId: string): Promise<Acti
 }
 
 /**
+ * Deletes the WhatsApp instance completely
+ */
+export async function deleteWhatsAppInstanceAction(instanceId: string): Promise<ActionResult<void>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return err('No autorizado')
+
+  const { data: profile } = await (supabase as any).from('users').select('org_id').eq('id', user.id).single()
+  const orgId = (profile as any)?.org_id
+  if (!orgId) return err('Organización no encontrada')
+
+  const admin = createAdminClient()
+  const { data: instance } = await (admin as any).from('whatsapp_instances').select('id').eq('id', instanceId).eq('org_id', orgId).single()
+  if (!instance) return err('Instancia no encontrada')
+
+  try {
+    // Delete from Evolution API (logoutInstance actually sends DELETE request in evolutionClient)
+    await evolutionClient.logoutInstance(instanceId)
+    
+    // Delete from DB
+    await (admin as any)
+      .from('whatsapp_instances')
+      .delete()
+      .eq('id', instanceId)
+
+    return ok(undefined)
+  } catch (error) {
+    console.error('Error in deleteWhatsAppInstanceAction:', error)
+    return err('Error al eliminar la instancia')
+  }
+}
+
+/**
  * Get WhatsApp specific settings like ignoring groups
  */
 export async function getWhatsAppSettingsAction(): Promise<ActionResult<{ ignoreGroups: boolean }>> {

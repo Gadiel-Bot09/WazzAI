@@ -36,9 +36,10 @@ async function AISettingsData() {
     .from('whatsapp_instances')
     .select('id')
     .eq('org_id', profile.org_id)
-    .single()
+    .order('created_at', { ascending: true })
+    .limit(1)
 
-  const instance = instanceData as any
+  const instance = instanceData?.[0] as any
 
   if (!instance?.id) {
     return (
