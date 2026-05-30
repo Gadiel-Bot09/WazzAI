@@ -191,11 +191,22 @@ export async function deleteWhatsAppInstanceAction(instanceId: string): Promise<
     // Delete from Evolution API (logoutInstance actually sends DELETE request in evolutionClient)
     await evolutionClient.logoutInstance(instanceId)
     
+    // Clean up dependent records manually to avoid foreign key constraint errors
+    await (admin as any).from('conversations').delete().eq('instance_id', instanceId)
+    await (admin as any).from('flow_states').delete().eq('instance_id', instanceId)
+    await (admin as any).from('automation_flows').update({ instance_id: null }).eq('instance_id', instanceId)
+    await (admin as any).from('ai_settings').delete().eq('instance_id', instanceId)
+
     // Delete from DB
-    await (admin as any)
+    const { error: deleteError } = await (admin as any)
       .from('whatsapp_instances')
       .delete()
       .eq('id', instanceId)
+
+    if (deleteError) {
+      console.error('deleteError:', deleteError)
+      return err('Error al eliminar la instancia en base de datos: ' + deleteError.message)
+    }
 
     return ok(undefined)
   } catch (error) {
