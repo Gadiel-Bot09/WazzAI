@@ -255,7 +255,7 @@ export async function getSurveyReportAction(opts: {
 
 export async function takeoverConversationAction(conversationId: string, assignedToUserId: string) {
   try {
-    const admin = createAdminClient()
+    const admin = createAdminClient() as any
 
     // 1. Mark conversation as assigned and turn off AI
     const { data, error } = await admin
@@ -263,7 +263,7 @@ export async function takeoverConversationAction(conversationId: string, assigne
       .update({
         is_ai_active: false,
         assigned_to: assignedToUserId,
-        status: 'open' // Keep it open so it shows in the agent's inbox
+        status: 'open'
       })
       .eq('id', conversationId)
       .select('*, contact:contacts(*)')
@@ -286,7 +286,7 @@ export async function takeoverConversationAction(conversationId: string, assigne
 
 export async function reassignConversationAction(conversationId: string, departmentId: string | null, assignedToUserId: string | null) {
   try {
-    const admin = createAdminClient()
+    const admin = createAdminClient() as any
 
     const payload: any = {}
     if (departmentId !== undefined) payload.department_id = departmentId
