@@ -113,8 +113,9 @@ export async function getTeamMembersAction() {
   }
 }
 
-export async function updateTeamMemberAction(id: string, orgId: string, payload: { role?: string, department_id?: string | null }) {
+export async function updateTeamMemberAction(id: string, payload: { role?: string, department_id?: string | null }) {
   try {
+    const orgId = await getCurrentOrg()
     const admin = createAdminClient() as any
     const { data, error } = await admin
       .from('team_members')
@@ -131,8 +132,9 @@ export async function updateTeamMemberAction(id: string, orgId: string, payload:
   }
 }
 
-export async function removeTeamMemberAction(id: string, orgId: string) {
+export async function removeTeamMemberAction(id: string) {
   try {
+    const orgId = await getCurrentOrg()
     const admin = createAdminClient() as any
     // Note: this only removes them from the team, it doesn't delete their auth user or user record.
     const { error } = await admin
@@ -142,7 +144,7 @@ export async function removeTeamMemberAction(id: string, orgId: string) {
       .eq('org_id', orgId)
 
     if (error) return err(error.message)
-    return ok(true)
+    return ok(undefined)
   } catch (e: any) {
     return err(e.message)
   }
@@ -150,8 +152,9 @@ export async function removeTeamMemberAction(id: string, orgId: string) {
 
 // Invite is more complex: typically involves auth.admin.inviteUserByEmail 
 // and then creating a team_member record. For now we will just create a placeholder action
-export async function inviteTeamMemberAction(orgId: string, email: string, role: string, department_id?: string) {
+export async function inviteTeamMemberAction(email: string, role: string, department_id?: string) {
   try {
+    const orgId = await getCurrentOrg()
     const admin = createAdminClient() as any
     
     // 1. Check if user already exists

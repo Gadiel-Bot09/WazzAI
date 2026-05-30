@@ -6,7 +6,7 @@ import type { ActionResult } from '@/lib/utils/server'
 import { evolutionClient } from '@/lib/evolution/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export async function getConversationsAction(): Promise<ActionResult<{ conversations: any[]; showAssignedAgent: boolean }>> {
+export async function getConversationsAction(): Promise<ActionResult<{ conversations: any[]; showAssignedAgent: boolean; currentUser: { id: string; departmentId: string | null; role: string } }>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return err('No autorizado')
