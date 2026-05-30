@@ -22,7 +22,7 @@ async function getCurrentOrg() {
 export async function getDepartmentsAction() {
   try {
     const orgId = await getCurrentOrg()
-    const admin = createAdminClient()
+    const admin = createAdminClient() as any
     const { data, error } = await admin
       .from('departments')
       .select('*')
@@ -39,7 +39,7 @@ export async function getDepartmentsAction() {
 export async function createDepartmentAction(payload: { name: string, description?: string }) {
   try {
     const orgId = await getCurrentOrg()
-    const admin = createAdminClient()
+    const admin = createAdminClient() as any
     const { data, error } = await admin
       .from('departments')
       .insert({ org_id: orgId, ...payload })
@@ -56,7 +56,7 @@ export async function createDepartmentAction(payload: { name: string, descriptio
 export async function updateDepartmentAction(id: string, payload: { name: string, description?: string }) {
   try {
     const orgId = await getCurrentOrg()
-    const admin = createAdminClient()
+    const admin = createAdminClient() as any
     const { data, error } = await admin
       .from('departments')
       .update(payload)
@@ -75,7 +75,7 @@ export async function updateDepartmentAction(id: string, payload: { name: string
 export async function deleteDepartmentAction(id: string) {
   try {
     const orgId = await getCurrentOrg()
-    const admin = createAdminClient()
+    const admin = createAdminClient() as any
     const { error } = await admin
       .from('departments')
       .delete()
@@ -94,7 +94,7 @@ export async function deleteDepartmentAction(id: string) {
 export async function getTeamMembersAction() {
   try {
     const orgId = await getCurrentOrg()
-    const admin = createAdminClient()
+    const admin = createAdminClient() as any
     // Fetch team members with their users and department
     const { data, error } = await admin
       .from('team_members')
@@ -115,7 +115,7 @@ export async function getTeamMembersAction() {
 
 export async function updateTeamMemberAction(id: string, orgId: string, payload: { role?: string, department_id?: string | null }) {
   try {
-    const admin = createAdminClient()
+    const admin = createAdminClient() as any
     const { data, error } = await admin
       .from('team_members')
       .update(payload)
@@ -133,7 +133,7 @@ export async function updateTeamMemberAction(id: string, orgId: string, payload:
 
 export async function removeTeamMemberAction(id: string, orgId: string) {
   try {
-    const admin = createAdminClient()
+    const admin = createAdminClient() as any
     // Note: this only removes them from the team, it doesn't delete their auth user or user record.
     const { error } = await admin
       .from('team_members')
@@ -152,7 +152,7 @@ export async function removeTeamMemberAction(id: string, orgId: string) {
 // and then creating a team_member record. For now we will just create a placeholder action
 export async function inviteTeamMemberAction(orgId: string, email: string, role: string, department_id?: string) {
   try {
-    const admin = createAdminClient()
+    const admin = createAdminClient() as any
     
     // 1. Check if user already exists
     const { data: existingUser } = await admin.from('users').select('id, email').eq('email', email).maybeSingle()
