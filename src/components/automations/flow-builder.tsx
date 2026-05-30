@@ -340,7 +340,7 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
                     className="text-xs"
                   />
                   {uploading && <p className="text-xs text-blue-500 animate-pulse">Subiendo a MinIO...</p>}
-                  {selectedNode.data.url && (
+                  {Boolean(selectedNode.data.url) && (
                     <div className="mt-2 border rounded p-1">
                       <img src={selectedNode.data.url as string} alt="Preview" className="w-full h-auto max-h-32 object-contain" />
                     </div>
