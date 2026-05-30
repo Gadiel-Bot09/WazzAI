@@ -152,12 +152,18 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
       return true
     } else if (currentNode.data.actionType === 'menu') {
       if (!state.state_data.waiting_for_input) {
+        // Format menu text to include options
+        let menuText = currentNode.data.content || 'Selecciona una opción'
+        if (currentNode.data.options && Array.isArray(currentNode.data.options) && currentNode.data.options.length > 0) {
+          menuText += '\n\n' + currentNode.data.options.join('\n')
+        }
+
         // Send menu message and wait
         await saveAndSendAIMessage({
           conversationId,
           orgId,
           contactPhone: phone,
-          replyText: currentNode.data.content || 'Selecciona una opción',
+          replyText: menuText,
           instanceId
         })
         await (admin as any).from('flow_states').update({
