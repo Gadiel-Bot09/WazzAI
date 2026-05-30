@@ -25,7 +25,7 @@ import { useRouter } from 'next/navigation'
 import { CustomNode } from './custom-node'
 import { DeletableEdge } from './deletable-edge'
 import { getUploadUrlAction } from '@/actions/storage'
-import EmojiPicker from 'emoji-picker-react'
+import EmojiPicker, { EmojiStyle } from 'emoji-picker-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 const nodeTypes = {
@@ -58,6 +58,7 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
     trigger_type: initialData.trigger_type,
     trigger_keywords: initialData.trigger_keywords.join(', '),
   })
+  const [rfInstance, setRfInstance] = useState<any>(null)
 
   const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdge({ ...params, type: 'deletable' }, eds)), [setEdges])
 
@@ -70,14 +71,64 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
   }, [])
 
   const addNode = (type: string, label: string) => {
+    // If we have an instance, place it in the center of the current view roughly
+    let position = { x: Math.random() * 200 + 100, y: Math.random() * 200 + 200 }
+    
+    if (rfInstance) {
+      const { x, y, zoom } = rfInstance.getViewport()
+      position = {
+        x: (-x + window.innerWidth / 2 - 300) / zoom,
+        y: (-y + window.innerHeight / 2) / zoom,
+      }
+    }
+
     const newNode: Node = {
       id: `${type}-${Date.now()}`,
       type: 'custom',
-      position: { x: Math.random() * 200 + 100, y: Math.random() * 200 + 200 },
+      position,
       data: { label, actionType: type, content: '', options: type === 'menu' ? ['1', '2', '3'] : undefined },
     }
     setNodes((nds) => nds.concat(newNode))
   }
+
+  const onDragStart = (event: React.DragEvent, type: string, label: string) => {
+    event.dataTransfer.setData('application/reactflow/type', type)
+    event.dataTransfer.setData('application/reactflow/label', label)
+    event.dataTransfer.effectAllowed = 'move'
+  }
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+  }, [])
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault()
+
+      const type = event.dataTransfer.getData('application/reactflow/type')
+      const label = event.dataTransfer.getData('application/reactflow/label')
+
+      if (typeof type === 'undefined' || !type || !rfInstance) {
+        return
+      }
+
+      const position = rfInstance.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      })
+
+      const newNode: Node = {
+        id: `${type}-${Date.now()}`,
+        type: 'custom',
+        position,
+        data: { label, actionType: type, content: '', options: type === 'menu' ? ['1', '2', '3'] : undefined },
+      }
+
+      setNodes((nds) => nds.concat(newNode))
+    },
+    [rfInstance, setNodes]
+  )
 
   const handleSave = async () => {
     setSaving(true)
@@ -158,7 +209,7 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0 border-none shadow-none" align="end" side="right">
-        <EmojiPicker onEmojiClick={(e) => onEmojiSelect(e.emoji)} />
+        <EmojiPicker emojiStyle={EmojiStyle.NATIVE} onEmojiClick={(e) => onEmojiSelect(e.emoji)} />
       </PopoverContent>
     </Popover>
   )
@@ -193,33 +244,69 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
           <div>
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Añadir Nodo</h3>
             <div className="grid gap-2">
-              <Button variant="outline" className="justify-start text-sm h-10" onClick={() => addNode('message', 'Enviar Mensaje')}>
+              <Button 
+                variant="outline" 
+                className="justify-start text-sm h-10 cursor-grab active:cursor-grabbing" 
+                draggable
+                onDragStart={(e) => onDragStart(e, 'message', 'Enviar Mensaje')}
+                onClick={() => addNode('message', 'Enviar Mensaje')}
+              >
                 <MessageSquare className="w-4 h-4 mr-2 text-blue-500" />
                 Mensaje Texto
               </Button>
-              <Button variant="outline" className="justify-start text-sm h-10" onClick={() => addNode('image', 'Enviar Imagen')}>
+              <Button 
+                variant="outline" 
+                className="justify-start text-sm h-10 cursor-grab active:cursor-grabbing" 
+                draggable
+                onDragStart={(e) => onDragStart(e, 'image', 'Enviar Imagen')}
+                onClick={() => addNode('image', 'Enviar Imagen')}
+              >
                 <svg className="w-4 h-4 mr-2 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 Imagen/Media
               </Button>
-              <Button variant="outline" className="justify-start text-sm h-10" onClick={() => addNode('menu', 'Menú Numérico')}>
+              <Button 
+                variant="outline" 
+                className="justify-start text-sm h-10 cursor-grab active:cursor-grabbing" 
+                draggable
+                onDragStart={(e) => onDragStart(e, 'menu', 'Menú Numérico')}
+                onClick={() => addNode('menu', 'Menú Numérico')}
+              >
                 <svg className="w-4 h-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
                 Menú Numérico
               </Button>
-              <Button variant="outline" className="justify-start text-sm h-10" onClick={() => addNode('delay', 'Retardo (Delay)')}>
+              <Button 
+                variant="outline" 
+                className="justify-start text-sm h-10 cursor-grab active:cursor-grabbing" 
+                draggable
+                onDragStart={(e) => onDragStart(e, 'delay', 'Retardo (Delay)')}
+                onClick={() => addNode('delay', 'Retardo (Delay)')}
+              >
                 <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Retardo
               </Button>
-              <Button variant="outline" className="justify-start text-sm h-10" onClick={() => addNode('condition', 'Condición (If/Else)')}>
+              <Button 
+                variant="outline" 
+                className="justify-start text-sm h-10 cursor-grab active:cursor-grabbing" 
+                draggable
+                onDragStart={(e) => onDragStart(e, 'condition', 'Condición (If/Else)')}
+                onClick={() => addNode('condition', 'Condición (If/Else)')}
+              >
                 <KeyRound className="w-4 h-4 mr-2 text-purple-500" />
                 Condición
               </Button>
-              <Button variant="outline" className="justify-start text-sm h-10" onClick={() => addNode('handoff', 'Transferir a Humano')}>
+              <Button 
+                variant="outline" 
+                className="justify-start text-sm h-10 cursor-grab active:cursor-grabbing" 
+                draggable
+                onDragStart={(e) => onDragStart(e, 'handoff', 'Transferir a Humano')}
+                onClick={() => addNode('handoff', 'Transferir a Humano')}
+              >
                 <ShieldAlert className="w-4 h-4 mr-2 text-orange-500" />
                 Transferir Agente
               </Button>
@@ -259,9 +346,10 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
         </div>
 
         {/* Center - Canvas */}
-        <div className="flex-1 h-full relative">
+        <div className="flex-1 h-full relative" onDragOver={onDragOver} onDrop={onDrop}>
           <ReactFlowProvider>
             <ReactFlow
+              onInit={setRfInstance}
               nodes={nodes}
               edges={edges.map(e => ({ ...e, type: 'deletable' }))}
               nodeTypes={nodeTypes}
