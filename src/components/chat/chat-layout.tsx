@@ -26,7 +26,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent }: ChatLayo
     
     const res = await deleteConversationAction(id)
     if (!res.success) {
-      toast.error(res.message || 'Error al eliminar chat')
+      toast.error(res.error || 'Error al eliminar chat')
       // If error, we might want to revert, but revalidation will fix it soon
     } else {
       toast.success('Chat eliminado')
