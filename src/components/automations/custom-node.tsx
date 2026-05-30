@@ -1,5 +1,6 @@
 import React from 'react'
-import { Handle, Position, NodeProps } from '@xyflow/react'
+import { Handle, Position, NodeProps, useUpdateNodeInternals } from '@xyflow/react'
+import { useEffect } from 'react'
 import { MessageSquare, ShieldAlert, KeyRound, Clock, Image as ImageIcon, ListOrdered } from 'lucide-react'
 
 // Icon helper
@@ -15,9 +16,15 @@ const getNodeIcon = (type: string) => {
   }
 }
 
-export function CustomNode({ data, isConnectable }: NodeProps) {
+export function CustomNode({ id, data, isConnectable }: NodeProps) {
   const isTrigger = data.label === 'Inicio del Flujo'
   const actionType = data.actionType as string
+  const updateNodeInternals = useUpdateNodeInternals()
+  const optionsString = JSON.stringify(data.options)
+
+  useEffect(() => {
+    updateNodeInternals(id)
+  }, [optionsString, id, updateNodeInternals])
 
   return (
     <div className="bg-card border border-border rounded-lg shadow-sm w-[200px] overflow-hidden text-sm">

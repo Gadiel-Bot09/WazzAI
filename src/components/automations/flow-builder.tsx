@@ -20,13 +20,20 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Save, Loader2, MessageSquare, ShieldAlert, KeyRound, Trash } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, MessageSquare, ShieldAlert, KeyRound, Trash, Smile } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { CustomNode } from './custom-node'
+import { DeletableEdge } from './deletable-edge'
 import { getUploadUrlAction } from '@/actions/storage'
+import EmojiPicker from 'emoji-picker-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 const nodeTypes = {
   custom: CustomNode,
+}
+
+const edgeTypes = {
+  deletable: DeletableEdge,
 }
 
 const initialNodes: Node[] = [
@@ -52,7 +59,7 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
     trigger_keywords: initialData.trigger_keywords.join(', '),
   })
 
-  const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)), [setEdges])
+  const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdge({ ...params, type: 'deletable' }, eds)), [setEdges])
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNode(node)
@@ -142,6 +149,19 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
       setUploading(false)
     }
   }
+
+  const EmojiButton = ({ onEmojiSelect }: { onEmojiSelect: (emoji: string) => void }) => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground">
+          <Smile className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 border-none shadow-none" align="end" side="right">
+        <EmojiPicker onEmojiClick={(e) => onEmojiSelect(e.emoji)} />
+      </PopoverContent>
+    </Popover>
+  )
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -243,8 +263,9 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
           <ReactFlowProvider>
             <ReactFlow
               nodes={nodes}
-              edges={edges}
+              edges={edges.map(e => ({ ...e, type: 'deletable' }))}
               nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
@@ -272,7 +293,10 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
               
               {selectedNode.data.actionType === 'message' && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Contenido del Mensaje</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Contenido del Mensaje</Label>
+                    <EmojiButton onEmojiSelect={(emoji) => updateSelectedNodeData('content', (selectedNode.data.content as string || '') + emoji)} />
+                  </div>
                   <Textarea 
                     value={selectedNode.data.content as string || ''} 
                     onChange={e => updateSelectedNodeData('content', e.target.value)}
@@ -346,7 +370,10 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
                     </div>
                   )}
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Mensaje adjunto (Caption)</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Mensaje adjunto (Caption)</Label>
+                      <EmojiButton onEmojiSelect={(emoji) => updateSelectedNodeData('content', (selectedNode.data.content as string || '') + emoji)} />
+                    </div>
                     <Textarea 
                       value={selectedNode.data.content as string || ''} 
                       onChange={e => updateSelectedNodeData('content', e.target.value)}
@@ -360,7 +387,10 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
               {selectedNode.data.actionType === 'menu' && (
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Mensaje del menú</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Mensaje del menú</Label>
+                      <EmojiButton onEmojiSelect={(emoji) => updateSelectedNodeData('content', (selectedNode.data.content as string || '') + emoji)} />
+                    </div>
                     <Textarea 
                       value={selectedNode.data.content as string || ''} 
                       onChange={e => updateSelectedNodeData('content', e.target.value)}
@@ -381,6 +411,11 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
                           }}
                           className="h-8 text-sm"
                         />
+                        <EmojiButton onEmojiSelect={(emoji) => {
+                          const newOpts = [...(selectedNode.data.options as string[] || ['1', '2', '3'])]
+                          newOpts[i] = (newOpts[i] || '') + emoji
+                          updateSelectedNodeData('options', newOpts)
+                        }} />
                         <Button 
                           variant="outline" 
                           size="icon" 
