@@ -26,7 +26,8 @@ import { CustomNode } from './custom-node'
 import { DeletableEdge } from './deletable-edge'
 import { getUploadUrlAction } from '@/actions/storage'
 import { getInstancesListAction } from '@/actions/whatsapp'
-import EmojiPicker, { EmojiStyle } from 'emoji-picker-react'
+import dynamic from 'next/dynamic'
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false })
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 const nodeTypes = {

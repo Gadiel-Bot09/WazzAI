@@ -20,8 +20,8 @@ export class EvolutionClient {
     this.apiKey = env.EVOLUTION_API_KEY || 'apikey'
   }
 
-  private getInstanceName(orgId: string): string {
-    return `wazzai_${orgId.replace(/-/g, '')}`
+  private getInstanceName(instanceId: string): string {
+    return `wazzai_${instanceId.replace(/-/g, '')}`
   }
 
   private get headers() {
@@ -34,8 +34,8 @@ export class EvolutionClient {
   /**
    * Crea una nueva instancia de WhatsApp para una organización
    */
-  async createInstance(orgId: string): Promise<EvolutionCreateInstanceResponse> {
-    const instanceName = this.getInstanceName(orgId)
+  async createInstance(instanceId: string): Promise<EvolutionCreateInstanceResponse> {
+    const instanceName = this.getInstanceName(instanceId)
     let appUrl = env.NEXT_PUBLIC_APP_URL
     if (!appUrl || appUrl.includes('localhost')) {
       if (process.env.VERCEL_URL) {
@@ -64,77 +64,67 @@ export class EvolutionClient {
       }
     }
 
-    const response = await fetch(`${this.baseUrl}/instance/create`, {
+    const res = await fetch(`${this.baseUrl}/instance/create`, {
       method: 'POST',
       headers: this.headers,
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload)
     })
-
-    if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`Error creating Evolution instance: ${error}`)
+    
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.error('Error creating evolution instance:', res.status, errorText)
+      throw new Error(`Failed to create instance: ${res.statusText}`)
     }
 
-    return response.json()
+    return res.json()
   }
 
   /**
    * Obtiene el código QR base64 de una instancia para conectarla
    */
-  async getQRCode(orgId: string): Promise<{ base64: string } | null> {
-    const instanceName = this.getInstanceName(orgId)
-
-    const response = await fetch(`${this.baseUrl}/instance/connect/${instanceName}`, {
+  async getQRCode(instanceId: string) {
+    const instanceName = this.getInstanceName(instanceId)
+    const res = await fetch(`${this.baseUrl}/instance/connect/${instanceName}`, {
       method: 'GET',
       headers: this.headers,
     })
-
-    if (!response.ok) {
-      if (response.status === 404) return null
-      const error = await response.text()
-      throw new Error(`Error fetching QR code: ${error}`)
+    
+    if (!res.ok) {
+      if (res.status === 404) return null
+      throw new Error('Failed to get QR code')
     }
 
-    const data = await response.json()
-    // Si la instancia ya está conectada, Evolution puede no devolver base64
-    const qrBase64 = data.base64 || data.qrcode?.base64
-    if (!qrBase64 && data.instance?.state === 'open') {
-      return null
-    }
-
-    return { base64: qrBase64 }
+    return res.json()
   }
 
   /**
    * Obtiene el estado de conexión de la instancia
    */
-  async getConnectionState(orgId: string): Promise<EvolutionInstance['instance'] | null> {
-    const instanceName = this.getInstanceName(orgId)
-
-    const response = await fetch(`${this.baseUrl}/instance/connectionState/${instanceName}`, {
+  async getConnectionState(instanceId: string) {
+    const instanceName = this.getInstanceName(instanceId)
+    const res = await fetch(`${this.baseUrl}/instance/connectionState/${instanceName}`, {
       method: 'GET',
       headers: this.headers,
     })
-
-    if (!response.ok) {
-      if (response.status === 404) return null
-      const error = await response.text()
-      throw new Error(`Error fetching connection state: ${error}`)
+    
+    if (!res.ok) {
+      if (res.status === 404) return null // Instancia no existe
+      throw new Error('Failed to get connection state')
     }
 
-    const data = await response.json()
-    return data.instance || data
+    const data = await res.json()
+    return data?.instance || data
   }
 
   /**
    * Envía un mensaje de texto
    */
   async sendTextMessage(
-    orgId: string, 
+    instanceId: string, 
     phone: string, 
     text: string
   ): Promise<EvolutionSendMessageResponse> {
-    const instanceName = this.getInstanceName(orgId)
+    const instanceName = this.getInstanceName(instanceId)
 
     const response = await fetch(`${this.baseUrl}/message/sendText/${instanceName}`, {
       method: 'POST',
@@ -157,8 +147,8 @@ export class EvolutionClient {
   /**
    * Envia un mensaje de tipo Media (Imagen/Audio/Video/Documento) a un número
    */
-  async sendMedia(orgId: string, phone: string, mediaUrl: string, mediaType: 'image' | 'audio' | 'video' | 'document', caption?: string): Promise<any> {
-    const instanceName = this.getInstanceName(orgId)
+  async sendMedia(instanceId: string, phone: string, mediaUrl: string, mediaType: 'image' | 'audio' | 'video' | 'document', caption?: string): Promise<any> {
+    const instanceName = this.getInstanceName(instanceId)
 
     const response = await fetch(`${this.baseUrl}/message/sendMedia/${instanceName}`, {
       method: 'POST',
@@ -185,8 +175,8 @@ export class EvolutionClient {
   /**
    * Cierra sesión (desconecta) la instancia
    */
-  async logoutInstance(orgId: string): Promise<boolean> {
-    const instanceName = this.getInstanceName(orgId)
+  async logoutInstance(instanceId: string): Promise<boolean> {
+    const instanceName = this.getInstanceName(instanceId)
 
     const response = await fetch(`${this.baseUrl}/instance/logout/${instanceName}`, {
       method: 'DELETE',

@@ -11,17 +11,17 @@ import {
 type State = 'loading' | 'connecting' | 'open' | 'error'
 
 interface WhatsAppConnectionStatusProps {
-  orgId?: string
+  instanceId: string
 }
 
-export function WhatsAppConnectionStatus({ orgId }: WhatsAppConnectionStatusProps) {
+export function WhatsAppConnectionStatus({ instanceId }: WhatsAppConnectionStatusProps) {
   const [qrBase64, setQrBase64] = useState<string | null>(null)
   const [state, setState] = useState<State>('loading')
   const [error, setError] = useState<string | null>(null)
   const [pollCount, setPollCount] = useState(0)
 
   const fetchStatus = useCallback(async () => {
-    const res = await getWhatsAppQRAction()
+    const res = await getWhatsAppQRAction(instanceId)
     if (res.success) {
       if (res.data.state === 'open') {
         setState('open')
@@ -87,7 +87,7 @@ export function WhatsAppConnectionStatus({ orgId }: WhatsAppConnectionStatusProp
             size="sm"
             onClick={async () => {
               setState('loading')
-              await disconnectWhatsAppAction()
+              await disconnectWhatsAppAction(instanceId)
               fetchStatus()
             }}
           >

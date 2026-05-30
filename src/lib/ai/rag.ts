@@ -206,11 +206,13 @@ export async function saveAndSendAIMessage({
   orgId,
   contactPhone,
   replyText,
+  instanceId,
 }: {
   conversationId: string
   orgId: string
   contactPhone: string
   replyText: string
+  instanceId?: string
 }): Promise<void> {
   const admin = createAdminClient()
 
@@ -228,7 +230,8 @@ export async function saveAndSendAIMessage({
 
   // 2. Send via WhatsApp (Evolution API)
   try {
-    await evolutionClient.sendTextMessage(orgId, contactPhone, replyText)
+    const finalInstanceId = instanceId || orgId // Fallback just in case
+    await evolutionClient.sendTextMessage(finalInstanceId, contactPhone, replyText)
   } catch (err) {
     console.error('[RAG] Failed to send AI message via Evolution:', err)
   }
@@ -247,7 +250,8 @@ export async function saveAndSendMediaMessage({
   contactPhone,
   mediaUrl,
   caption,
-  mediaType = 'image'
+  mediaType = 'image',
+  instanceId,
 }: {
   conversationId: string
   orgId: string
@@ -255,6 +259,7 @@ export async function saveAndSendMediaMessage({
   mediaUrl: string
   caption?: string
   mediaType?: 'image' | 'video' | 'document' | 'audio'
+  instanceId?: string
 }): Promise<void> {
   const admin = createAdminClient()
 
@@ -272,11 +277,12 @@ export async function saveAndSendMediaMessage({
     sent_at: new Date().toISOString(),
   })
 
-  // 2. Send via WhatsApp (Evolution API)
+  // 2. Send via WhatsApp
   try {
-    await evolutionClient.sendMedia(orgId, contactPhone, mediaUrl, mediaType, caption)
+    const finalInstanceId = instanceId || orgId
+    await evolutionClient.sendMedia(finalInstanceId, contactPhone, mediaUrl, mediaType as 'image' | 'video' | 'audio' | 'document', caption || '')
   } catch (err) {
-    console.error('[RAG] Failed to send Media message via Evolution:', err)
+    console.error('[RAG] Failed to send media via Evolution:', err)
   }
 
   // 3. Update conversation last message

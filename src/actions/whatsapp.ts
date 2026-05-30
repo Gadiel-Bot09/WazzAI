@@ -7,37 +7,50 @@ import { ok, err } from '@/lib/utils/server'
 import type { ActionResult } from '@/lib/utils/server'
 
 /**
- * Ensures the whatsapp_instances record exists in DB for the given org.
- * C4-FIX: Always persist the instance so AI config can reference it.
+ * Creates a new whatsapp_instances record and initializes it in Evolution API
  */
-async function ensureInstanceInDB(orgId: string): Promise<string | null> {
-  const admin = createAdminClient()
-  // Check if already exists
-  const { data: existing } = await (admin as any)
-    .from('whatsapp_instances')
-    .select('id')
-    .eq('org_id', orgId)
+export async function createWhatsAppInstanceAction(name: string): Promise<ActionResult<{ id: string }>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return err('No autorizado')
+
+  const { data: profile } = await (supabase as any)
+    .from('users')
+    .select('org_id')
+    .eq('id', user.id)
     .single()
 
-  if (existing?.id) return existing.id
+  const orgId = (profile as any)?.org_id
+  if (!orgId) return err('Organización no encontrada')
 
-  // Create it
-  const instanceName = `wazzai_${orgId.replace(/-/g, '')}`
+  const admin = createAdminClient()
+  
+  // 1. Insert into DB to get UUID
   const { data: created, error } = await (admin as any)
     .from('whatsapp_instances')
     .insert({
       org_id: orgId,
-      name: instanceName,
+      name: name,
       status: 'connecting',
     })
     .select('id')
     .single()
 
-  if (error) {
-    console.error('ensureInstanceInDB insert error:', error)
+  if (error || !created) {
+    console.error('createWhatsAppInstanceAction error:', error)
+    return err('Error al crear la instancia en base de datos')
   }
 
-  return created?.id ?? null
+  // 2. Create in Evolution API
+  try {
+    await evolutionClient.createInstance(created.id)
+  } catch (e) {
+    console.error('Evolution create error:', e)
+    // Optional: we could delete the DB record if evolution fails, or let them retry
+    return err('Error al iniciar la instancia en el servidor de WhatsApp')
+  }
+
+  return ok({ id: created.id })
 }
 
 /**
@@ -60,7 +73,7 @@ export async function getInstancesListAction(): Promise<ActionResult<{ id: strin
   const admin = createAdminClient()
   const { data, error } = await (admin as any)
     .from('whatsapp_instances')
-    .select('id, name')
+    .select('id, name, status')
     .eq('org_id', orgId)
     .order('created_at', { ascending: true })
 
@@ -73,53 +86,48 @@ export async function getInstancesListAction(): Promise<ActionResult<{ id: strin
 }
 
 /**
- * Gets or creates the WhatsApp QR Code for the current user's organization
+ * Gets or creates the WhatsApp QR Code for the specific instance
  */
-export async function getWhatsAppQRAction(): Promise<ActionResult<{ base64: string | null; state: string }>> {
+export async function getWhatsAppQRAction(instanceId: string): Promise<ActionResult<{ base64: string | null; state: string }>> {
   const supabase = await createClient()
   
   // 1. Get user session
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return err('No autorizado')
 
-  // 2. Get user's active organization
-  const { data: profile } = await (supabase as any)
-    .from('users')
-    .select('org_id')
-    .eq('id', user.id)
-    .single()
-
+  // 2. Ensure user owns this instance (org_id match)
+  const { data: profile } = await (supabase as any).from('users').select('org_id').eq('id', user.id).single()
   const orgId = (profile as any)?.org_id
   if (!orgId) return err('Organización no encontrada')
 
-  try {
-    // 3. Ensure instance exists in DB (C4-FIX)
-    await ensureInstanceInDB(orgId)
+  const admin = createAdminClient()
+  const { data: instance } = await (admin as any).from('whatsapp_instances').select('id').eq('id', instanceId).eq('org_id', orgId).single()
+  if (!instance) return err('Instancia no encontrada')
 
-    // 4. Try to get connection state first
-    const state = await evolutionClient.getConnectionState(orgId)
+  try {
+    // 3. Try to get connection state first
+    const state = await evolutionClient.getConnectionState(instanceId)
     
-    // Si no existe la instancia en Evolution, la creamos
+    // Si no existe la instancia en Evolution, la creamos de nuevo
     if (!state) {
-      const creationResponse = await evolutionClient.createInstance(orgId)
+      const creationResponse = await evolutionClient.createInstance(instanceId)
       if (creationResponse.qrcode?.base64) {
         return ok({ base64: creationResponse.qrcode.base64, state: 'connecting' })
       }
     }
 
-    // 5. Si ya está conectado, actualizar estado en DB
+    // 4. Si ya está conectado, actualizar estado en DB
     const connectionState = state?.state || state?.status
     if (connectionState === 'open') {
-      const admin = createAdminClient()
       await (admin as any)
         .from('whatsapp_instances')
         .update({ status: 'connected', connected_at: new Date().toISOString() })
-        .eq('org_id', orgId)
+        .eq('id', instanceId)
       return ok({ base64: null, state: 'open' })
     }
 
-    // 6. Si no está conectado, obtenemos el QR
-    const qrResponse = await evolutionClient.getQRCode(orgId)
+    // 5. Si no está conectado, obtenemos el QR
+    const qrResponse = await evolutionClient.getQRCode(instanceId)
     
     return ok({ 
       base64: qrResponse?.base64 || null, 
@@ -133,32 +141,32 @@ export async function getWhatsAppQRAction(): Promise<ActionResult<{ base64: stri
 }
 
 /**
- * Disconnects the WhatsApp session for the current user's org
+ * Disconnects the WhatsApp session for the specific instance
  */
-export async function disconnectWhatsAppAction(): Promise<ActionResult<void>> {
+export async function disconnectWhatsAppAction(instanceId: string): Promise<ActionResult<void>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return err('No autorizado')
 
-  const { data: profile } = await (supabase as any)
-    .from('users')
-    .select('org_id')
-    .eq('id', user.id)
-    .single()
-
+  const { data: profile } = await (supabase as any).from('users').select('org_id').eq('id', user.id).single()
   const orgId = (profile as any)?.org_id
   if (!orgId) return err('Organización no encontrada')
 
+  const admin = createAdminClient()
+  const { data: instance } = await (admin as any).from('whatsapp_instances').select('id').eq('id', instanceId).eq('org_id', orgId).single()
+  if (!instance) return err('Instancia no encontrada')
+
   try {
-    await evolutionClient.logoutInstance(orgId)
-    const admin = createAdminClient()
+    await evolutionClient.logoutInstance(instanceId)
+    
     await (admin as any)
       .from('whatsapp_instances')
-      .update({ status: 'disconnected', connected_at: null })
-      .eq('org_id', orgId)
+      .update({ status: 'disconnected' })
+      .eq('id', instanceId)
+
     return ok(undefined)
-  } catch (e) {
-    console.error('disconnectWhatsAppAction error:', e)
+  } catch (error) {
+    console.error('Error in disconnectWhatsAppAction:', error)
     return err('Error al desconectar WhatsApp')
   }
 }

@@ -31,7 +31,7 @@ export async function processAutomations({
 
   if (activeState && activeState.flow) {
     // Resume flow
-    return await executeFlowStep(activeState, textContent, conversationId, phone, orgId)
+    return await executeFlowStep(activeState, textContent, conversationId, phone, orgId, instanceId)
   }
 
   // 2. Not in a flow. Check if we should trigger one.
@@ -84,14 +84,14 @@ export async function processAutomations({
 
     if (newState) {
       // Execute from first node
-      return await executeFlowStep(newState, textContent, conversationId, phone, orgId)
+      return await executeFlowStep(newState, textContent, conversationId, phone, orgId, instanceId)
     }
   }
 
   return false // No automation handled this message
 }
 
-async function executeFlowStep(state: any, incomingText: string, conversationId: string, phone: string, orgId: string): Promise<boolean> {
+async function executeFlowStep(state: any, incomingText: string, conversationId: string, phone: string, orgId: string, instanceId: string): Promise<boolean> {
   const admin = createAdminClient()
   const flow = state.flow
   const nodes = flow.nodes || []
@@ -116,7 +116,8 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
         conversationId,
         orgId,
         contactPhone: phone,
-        replyText: currentNode.data.content || '',
+        replyText: currentNode.data.content as string,
+        instanceId
       })
     } else if (currentNode.data.actionType === 'image') {
       // Send image
@@ -125,9 +126,10 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
           conversationId,
           orgId,
           contactPhone: phone,
-          mediaUrl: currentNode.data.url,
-          caption: currentNode.data.content,
-          mediaType: 'image'
+          mediaUrl: currentNode.data.url as string,
+          caption: currentNode.data.content as string | undefined,
+          mediaType: 'image',
+          instanceId
         })
       }
     } else if (currentNode.data.actionType === 'delay') {
@@ -135,6 +137,15 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
       const seconds = currentNode.data.seconds || 5
       await new Promise(resolve => setTimeout(resolve, seconds * 1000))
     } else if (currentNode.data.actionType === 'handoff') {
+      if (currentNode.data.content) {
+        await saveAndSendAIMessage({
+          conversationId,
+          orgId,
+          contactPhone: phone,
+          replyText: currentNode.data.content as string,
+          instanceId
+        })
+      }
       // End flow, turn off AI, mark as pending?
       await (admin as any).from('conversations').update({ is_ai_active: false, status: 'pending' }).eq('id', conversationId)
       await endFlow(state.id)
@@ -147,6 +158,7 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
           orgId,
           contactPhone: phone,
           replyText: currentNode.data.content || 'Selecciona una opción',
+          instanceId
         })
         await (admin as any).from('flow_states').update({
           current_node_id: currentNodeId,
@@ -157,12 +169,12 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
         // Resuming from menu
         const options = state.state_data.options || []
         const inputStr = incomingText.trim().toLowerCase()
-        const matchedOption = options.find((opt: string) => opt.toLowerCase() === inputStr)
+        const matchedIndex = options.findIndex((opt: string) => opt.toLowerCase() === inputStr)
         
-        if (matchedOption) {
+        if (matchedIndex !== -1) {
           state.state_data.waiting_for_input = false
-          // We need to branch using matchedOption
-          const nextEdge = edges.find((e: any) => e.source === currentNodeId && e.sourceHandle === matchedOption)
+          // We need to branch using matchedOption index
+          const nextEdge = edges.find((e: any) => e.source === currentNodeId && e.sourceHandle === `opt-${matchedIndex}`)
           if (nextEdge) {
             currentNodeId = nextEdge.target
             await (admin as any).from('flow_states').update({
@@ -181,6 +193,7 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
             orgId,
             contactPhone: phone,
             replyText: 'Opción no válida. Por favor, selecciona una de las opciones del menú.',
+            instanceId
           })
           return true
         }

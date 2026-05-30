@@ -23,12 +23,14 @@ export async function POST(req: Request) {
       
       console.log(`[Webhook] Instance ${instance} connection update: ${state} (Reason: ${statusReason})`)
       
-      // Actualizar estado en la tabla whatsapp_instances
-      const { data: orgs } = await supabaseAdmin.from('organizations').select('id')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const org = (orgs as any[])?.find(o => `wazzai_${o.id.replace(/-/g, '')}` === instance) as any
+      // Reconstruir UUID (ej: 1234567890abcdef1234567890abcdef -> 12345678-90ab-cdef-1234-567890abcdef)
+      const instanceIdStr = instance.replace('wazzai_', '')
+      const uuid = `${instanceIdStr.slice(0,8)}-${instanceIdStr.slice(8,12)}-${instanceIdStr.slice(12,16)}-${instanceIdStr.slice(16,20)}-${instanceIdStr.slice(20)}`
       
-      if (org && state) {
+      const { data: waInstanceRaw } = await supabaseAdmin.from('whatsapp_instances').select('id, org_id').eq('id', uuid).single()
+      const waInstance = waInstanceRaw as any
+      
+      if (waInstance && state) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabaseAdmin as any)
           .from('whatsapp_instances')
@@ -36,7 +38,7 @@ export async function POST(req: Request) {
             status: state === 'open' ? 'connected' : state === 'connecting' ? 'connecting' : 'disconnected',
             ...(state === 'open' ? { connected_at: new Date().toISOString() } : {})
           })
-          .eq('org_id', org.id)
+          .eq('id', waInstance.id)
       }
       
       return NextResponse.json({ success: true })
@@ -72,14 +74,19 @@ export async function POST(req: Request) {
       const phone = key.remoteJid.replace('@s.whatsapp.net', '')
       const messageId = key.id
 
-      // Obtener el org_id real a partir del nombre de instancia
-      // Como le quitamos los guiones en client.ts: orgId.replace(/-/g, '')
-      // Lo ideal es tener una tabla "channels" o buscar orgId.
-      // En el esquema Módulo 1 pusimos 'whatsapp_instances' o podemos buscar directo.
-      // Por simplicidad en la prueba de concepto, busquemos todas las orgs y hagamos match.
-      const { data: orgs } = await supabaseAdmin.from('organizations').select('id, metadata')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const org = (orgs as any[])?.find(o => `wazzai_${o.id.replace(/-/g, '')}` === instance) as any
+      // Obtener la instancia y el org_id a partir del nombre de instancia
+      const instanceIdStr = instance.replace('wazzai_', '')
+      const uuid = `${instanceIdStr.slice(0,8)}-${instanceIdStr.slice(8,12)}-${instanceIdStr.slice(12,16)}-${instanceIdStr.slice(16,20)}-${instanceIdStr.slice(20)}`
+      
+      const { data: waInstanceRaw } = await supabaseAdmin.from('whatsapp_instances').select('id, org_id').eq('id', uuid).single()
+      const waInstance = waInstanceRaw as any
+      if (!waInstance) {
+        console.error(`No instance found for ${instance}`)
+        return NextResponse.json({ error: 'Instance not found' }, { status: 404 })
+      }
+      
+      const { data: orgData } = await supabaseAdmin.from('organizations').select('id, metadata').eq('id', waInstance.org_id).single()
+      const org = orgData as any
       
       if (!org) {
         console.error(`No org found for instance ${instance}`)

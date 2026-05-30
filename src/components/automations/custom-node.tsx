@@ -68,7 +68,7 @@ export function CustomNode({ id, data, isConnectable }: NodeProps) {
             {(data.options as string[] || ['1', '2', '3']).map((opt, i) => (
               <div key={i} className="relative flex justify-between items-center bg-muted p-1 rounded">
                 <span className="truncate pr-4">{opt}</span>
-                <Handle type="source" position={Position.Right} id={opt} isConnectable={isConnectable} className="w-3 h-3 top-1/2 right-[-8px] translate-y-[-50%]" />
+                <Handle type="source" position={Position.Right} id={`opt-${i}`} isConnectable={isConnectable} className="w-3 h-3 top-1/2 right-[-8px] translate-y-[-50%]" />
               </div>
             ))}
           </div>

@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { WhatsAppConnectionStatus } from '@/components/whatsapp/qr-scanner'
+import { InstanceManager } from '@/components/whatsapp/instance-manager'
 import { WhatsAppSettingsForm } from '@/components/whatsapp/whatsapp-settings'
 import { getWhatsAppSettingsAction } from '@/actions/whatsapp'
 import { Smartphone, Loader2, Info, Settings } from 'lucide-react'
@@ -98,13 +98,7 @@ export default async function WhatsAppPage({ searchParams }: PageProps) {
                   Escanea el código QR para vincular tu número de WhatsApp Business.
                 </p>
               </div>
-              <Suspense fallback={
-                <div className="flex justify-center py-16">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              }>
-                <WhatsAppConnectionStatus orgId={orgId} />
-              </Suspense>
+              <InstanceManager />
             </div>
           ) : currentTab === 'configuracion' ? (
             <div className="bg-card rounded-xl border shadow-sm p-6">
