@@ -137,15 +137,14 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
       const seconds = currentNode.data.seconds || 5
       await new Promise(resolve => setTimeout(resolve, seconds * 1000))
     } else if (currentNode.data.actionType === 'handoff') {
-      if (currentNode.data.content) {
-        await saveAndSendAIMessage({
-          conversationId,
-          orgId,
-          contactPhone: phone,
-          replyText: currentNode.data.content as string,
-          instanceId
-        })
-      }
+      const handoffMsg = currentNode.data.content || 'Serás transferido a un asesor en breve...'
+      await saveAndSendAIMessage({
+        conversationId,
+        orgId,
+        contactPhone: phone,
+        replyText: handoffMsg as string,
+        instanceId
+      })
       // End flow, turn off AI, mark as pending?
       await (admin as any).from('conversations').update({ is_ai_active: false, status: 'pending' }).eq('id', conversationId)
       await endFlow(state.id)
