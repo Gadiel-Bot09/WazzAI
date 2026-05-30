@@ -43,6 +43,13 @@ export async function closeConversationAction(
     .update({ status: 'closed', closed_at: new Date().toISOString(), is_ai_active: false })
     .eq('id', conversationId)
 
+  // 2.5 End any active flow states for this contact so they don't resume on the next message
+  await (admin as any)
+    .from('flow_states')
+    .update({ status: 'completed' })
+    .eq('contact_id', conv.contact_id)
+    .eq('status', 'active')
+
   // 3. Send satisfaction survey if requested
   if (sendSurvey) {
     const { data: contact } = await (admin as any)

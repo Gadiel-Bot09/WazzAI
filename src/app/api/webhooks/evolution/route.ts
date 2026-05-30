@@ -231,14 +231,17 @@ export async function POST(req: Request) {
 
       // Buscar o crear conversación
       let conversationId = null
-      const { data: existingConv } = await supabaseAdmin
+      const { data: existingConvData } = await supabaseAdmin
         .from('conversations')
         .select('id')
         .eq('org_id', org.id)
         .eq('contact_id', contactId)
         .eq('instance_id', waInstance.id)
         .eq('status', 'open')
-        .single()
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      const existingConv = existingConvData?.[0]
 
       if (existingConv) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

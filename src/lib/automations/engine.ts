@@ -175,7 +175,17 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
         // Resuming from menu
         const options = state.state_data.options || []
         const inputStr = incomingText.trim().toLowerCase()
-        const matchedIndex = options.findIndex((opt: string) => opt.toLowerCase() === inputStr)
+        
+        const matchedIndex = options.findIndex((opt: string) => {
+          const optLower = opt.trim().toLowerCase()
+          if (optLower === inputStr) return true
+          
+          // Match first number/word (e.g., "1" matches "1 - Citas")
+          const firstPart = optLower.split(/[\s-.)]+/)[0]
+          if (firstPart && firstPart === inputStr) return true
+          
+          return false
+        })
         
         if (matchedIndex !== -1) {
           state.state_data.waiting_for_input = false
