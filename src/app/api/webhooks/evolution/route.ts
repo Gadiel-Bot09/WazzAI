@@ -255,6 +255,7 @@ export async function POST(req: Request) {
             instance_id: instanceData?.id,
             contact_id: contactId,
             status: 'open',
+            is_ai_active: true,
             last_message_at: new Date().toISOString()
           })
           .select('id')

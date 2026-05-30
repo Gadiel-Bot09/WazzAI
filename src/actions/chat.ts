@@ -96,8 +96,9 @@ export async function sendChatMessageAction(
   try {
     // 1. Send via Evolution API
     // En el futuro, idealmente usaríamos el instance_id para sacar el nombre de la instancia.
-    // Por ahora, como es single-tenant per org en la prueba, usamos el org_id
-    await evolutionClient.sendTextMessage(profile.org_id, contact.phone_number, text)
+    // Por ahora, como es single-tenant per org en la prueba, usamos
+    const finalInstanceId = conv.instance_id || profile.org_id;
+    await evolutionClient.sendTextMessage(finalInstanceId, contact.phone_number, text)
 
     // 2. Guardar el mensaje en Supabase
     const admin = createAdminClient()

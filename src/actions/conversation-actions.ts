@@ -59,7 +59,7 @@ export async function closeConversationAction(
         'Responde con el número de tu calificación (1-5).'
 
       try {
-        await evolutionClient.sendTextMessage(ctx.orgId, contact.phone_number, surveyMsg)
+        await evolutionClient.sendTextMessage(conv.instance_id, contact.phone_number, surveyMsg)
       } catch (e) {
         console.error('closeConversationAction: failed to send survey', e)
       }

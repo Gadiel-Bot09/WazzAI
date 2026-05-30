@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ConversationList } from './conversation-list'
 import { ChatWindow } from './chat-window'
 import { deleteConversationAction } from '@/actions/conversation-actions'
@@ -16,6 +16,10 @@ export function ChatLayout({ initialConversations, showAssignedAgent }: ChatLayo
   const [activeId, setActiveId] = useState<string | null>(
     initialConversations.length > 0 ? initialConversations[0].id : null
   )
+
+  useEffect(() => {
+    setConversations(initialConversations)
+  }, [initialConversations])
 
   const activeConversation = conversations.find(c => c.id === activeId)
 
