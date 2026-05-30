@@ -24,6 +24,7 @@ export interface AutomationFlow {
   nodes: any[]
   edges: any[]
   is_active: boolean
+  instance_id?: string | null
 }
 
 export async function getFlowsAction(): Promise<ActionResult<AutomationFlow[]>> {
@@ -77,6 +78,7 @@ export async function createFlowAction(data: Partial<AutomationFlow>): Promise<A
       nodes: data.nodes || [],
       edges: data.edges || [],
       is_active: data.is_active ?? true,
+      instance_id: data.instance_id || null,
     })
     .select()
     .single()

@@ -7,7 +7,8 @@ export async function processAutomations({
   conversationId,
   phone,
   textContent,
-  isFirstMessage
+  isFirstMessage,
+  instanceId
 }: {
   orgId: string
   contactId: string
@@ -15,6 +16,7 @@ export async function processAutomations({
   phone: string
   textContent: string
   isFirstMessage: boolean
+  instanceId: string
 }): Promise<boolean> {
   const admin = createAdminClient()
 
@@ -38,6 +40,7 @@ export async function processAutomations({
     .select('*')
     .eq('org_id', orgId)
     .eq('is_active', true)
+    .or(`instance_id.is.null,instance_id.eq.${instanceId}`)
 
   if (!flows || flows.length === 0) return false
 

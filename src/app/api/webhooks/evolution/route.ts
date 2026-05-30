@@ -308,7 +308,8 @@ export async function POST(req: Request) {
             conversationId,
             phone,
             textContent,
-            isFirstMessage
+            isFirstMessage,
+            instanceId: convCheck.instance_id
           })
 
           if (!handledByFlow) {

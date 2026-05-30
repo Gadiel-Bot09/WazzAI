@@ -25,6 +25,7 @@ import { useRouter } from 'next/navigation'
 import { CustomNode } from './custom-node'
 import { DeletableEdge } from './deletable-edge'
 import { getUploadUrlAction } from '@/actions/storage'
+import { getInstancesListAction } from '@/actions/whatsapp'
 import EmojiPicker, { EmojiStyle } from 'emoji-picker-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
@@ -57,8 +58,18 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
     description: initialData.description || '',
     trigger_type: initialData.trigger_type,
     trigger_keywords: initialData.trigger_keywords.join(', '),
+    instance_id: initialData.instance_id || '',
   })
+  const [instances, setInstances] = useState<{id: string, name: string}[]>([])
   const [rfInstance, setRfInstance] = useState<any>(null)
+
+  useEffect(() => {
+    getInstancesListAction().then(res => {
+      if (res.success && res.data) {
+        setInstances(res.data)
+      }
+    })
+  }, [])
 
   const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdge({ ...params, type: 'deletable' }, eds)), [setEdges])
 
@@ -131,20 +142,28 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
   )
 
   const handleSave = async () => {
+    if (!flowMeta.instance_id) {
+      alert('Por favor, selecciona una Instancia de WhatsApp para este flujo.')
+      return
+    }
+
     setSaving(true)
     const keywordsArray = flowMeta.trigger_keywords
       .split(',')
       .map(k => k.trim())
       .filter(k => k.length > 0)
 
-    const res = await updateFlowAction(initialData.id, {
+    const payload = {
       name: flowMeta.name,
       description: flowMeta.description,
       trigger_type: flowMeta.trigger_type,
       trigger_keywords: keywordsArray,
+      instance_id: flowMeta.instance_id,
       nodes,
       edges,
-    })
+    }
+
+    const res = await updateFlowAction(initialData.id, payload)
     
     setSaving(false)
     if (res.success) {
@@ -208,8 +227,8 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
           <Smile className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 border-none shadow-none" align="end" side="right">
-        <EmojiPicker emojiStyle={EmojiStyle.NATIVE} onEmojiClick={(e) => onEmojiSelect(e.emoji)} />
+      <PopoverContent className="w-[350px] p-0" align="end" side="right">
+        <EmojiPicker onEmojiClick={(e) => onEmojiSelect(e.emoji)} width="100%" />
       </PopoverContent>
     </Popover>
   )
@@ -316,6 +335,21 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
           <div className="border-t pt-4">
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Config. Trigger</h3>
             <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs text-red-500 font-semibold">Instancia de WhatsApp *</Label>
+                <select 
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                  value={flowMeta.instance_id}
+                  onChange={e => setFlowMeta(p => ({ ...p, instance_id: e.target.value }))}
+                >
+                  <option value="" disabled>Selecciona una instancia...</option>
+                  {instances.map(inst => (
+                    <option key={inst.id} value={inst.id}>{inst.name}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-muted-foreground">Requerido. El flujo se activará exclusivamente en esta instancia.</p>
+              </div>
+
               <div className="space-y-2">
                 <Label className="text-xs">Tipo de Activador</Label>
                 <select 

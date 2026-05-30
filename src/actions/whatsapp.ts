@@ -41,6 +41,38 @@ async function ensureInstanceInDB(orgId: string): Promise<string | null> {
 }
 
 /**
+ * Gets all WhatsApp instances for the current user's organization
+ */
+export async function getInstancesListAction(): Promise<ActionResult<{ id: string; name: string }[]>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return err('No autorizado')
+
+  const { data: profile } = await (supabase as any)
+    .from('users')
+    .select('org_id')
+    .eq('id', user.id)
+    .single()
+
+  const orgId = (profile as any)?.org_id
+  if (!orgId) return err('Organización no encontrada')
+
+  const admin = createAdminClient()
+  const { data, error } = await (admin as any)
+    .from('whatsapp_instances')
+    .select('id, name')
+    .eq('org_id', orgId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('getInstancesListAction error:', error)
+    return err('Error al obtener instancias')
+  }
+
+  return ok(data || [])
+}
+
+/**
  * Gets or creates the WhatsApp QR Code for the current user's organization
  */
 export async function getWhatsAppQRAction(): Promise<ActionResult<{ base64: string | null; state: string }>> {
