@@ -243,13 +243,8 @@ export async function POST(req: Request) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         conversationId = (existingConv as any).id
       } else {
-        // Obtener la instancia
-        const { data: instanceDataRaw } = await supabaseAdmin
-          .from('whatsapp_instances')
-          .select('id')
-          .eq('org_id', org.id)
-          .single()
-        const instanceData = instanceDataRaw as any
+        // Usamos la instancia desde la cual llegó el mensaje
+        const instanceData = waInstance
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: newConv } = await (supabaseAdmin as any)
