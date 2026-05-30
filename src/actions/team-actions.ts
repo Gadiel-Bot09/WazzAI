@@ -1,12 +1,27 @@
 'use server'
 
-import { createAdminClient } from '@/lib/supabase/server'
-import { ok, err } from '@/lib/utils/action-utils'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
+import { ok, err } from '@/lib/utils/server'
+
+// Helper to get current org
+async function getCurrentOrg() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('No autorizado')
+
+  const { data: profileData } = await supabase.from('users').select('org_id').eq('id', user.id).single()
+  const profile = profileData as any
+  if (!profile?.org_id) throw new Error('Organización no encontrada')
+  
+  return profile.org_id
+}
 
 // ── DEPARTMENTS ─────────────────────────────────────────────────────────────
 
-export async function getDepartmentsAction(orgId: string) {
+export async function getDepartmentsAction() {
   try {
+    const orgId = await getCurrentOrg()
     const admin = createAdminClient()
     const { data, error } = await admin
       .from('departments')
@@ -21,8 +36,9 @@ export async function getDepartmentsAction(orgId: string) {
   }
 }
 
-export async function createDepartmentAction(orgId: string, payload: { name: string, description?: string }) {
+export async function createDepartmentAction(payload: { name: string, description?: string }) {
   try {
+    const orgId = await getCurrentOrg()
     const admin = createAdminClient()
     const { data, error } = await admin
       .from('departments')
@@ -37,8 +53,9 @@ export async function createDepartmentAction(orgId: string, payload: { name: str
   }
 }
 
-export async function updateDepartmentAction(id: string, orgId: string, payload: { name: string, description?: string }) {
+export async function updateDepartmentAction(id: string, payload: { name: string, description?: string }) {
   try {
+    const orgId = await getCurrentOrg()
     const admin = createAdminClient()
     const { data, error } = await admin
       .from('departments')
@@ -55,8 +72,9 @@ export async function updateDepartmentAction(id: string, orgId: string, payload:
   }
 }
 
-export async function deleteDepartmentAction(id: string, orgId: string) {
+export async function deleteDepartmentAction(id: string) {
   try {
+    const orgId = await getCurrentOrg()
     const admin = createAdminClient()
     const { error } = await admin
       .from('departments')
@@ -65,7 +83,7 @@ export async function deleteDepartmentAction(id: string, orgId: string) {
       .eq('org_id', orgId)
 
     if (error) return err(error.message)
-    return ok(true)
+    return ok(null)
   } catch (e: any) {
     return err(e.message)
   }
@@ -73,8 +91,9 @@ export async function deleteDepartmentAction(id: string, orgId: string) {
 
 // ── TEAM MEMBERS ────────────────────────────────────────────────────────────
 
-export async function getTeamMembersAction(orgId: string) {
+export async function getTeamMembersAction() {
   try {
+    const orgId = await getCurrentOrg()
     const admin = createAdminClient()
     // Fetch team members with their users and department
     const { data, error } = await admin
