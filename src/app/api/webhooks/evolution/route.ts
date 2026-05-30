@@ -236,6 +236,7 @@ export async function POST(req: Request) {
         .select('id')
         .eq('org_id', org.id)
         .eq('contact_id', contactId)
+        .eq('instance_id', waInstance.id)
         .eq('status', 'open')
         .single()
 
