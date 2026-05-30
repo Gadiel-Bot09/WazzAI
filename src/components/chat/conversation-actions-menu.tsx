@@ -125,6 +125,21 @@ export function ConversationActionsMenu({
     }
   }
 
+  async function handleDelete() {
+    setLoading(true)
+    const res = await deleteConversationAction(conversationId)
+    setLoading(false)
+    if (!res.success) {
+      showFeedback(false, res.error ?? 'Error al eliminar')
+    } else {
+      showFeedback(true, 'Conversación eliminada ✓')
+      setTimeout(() => {
+        setModal('none')
+        if (onStatusChange) onStatusChange()
+      }, 1000)
+    }
+  }
+
   async function handleTransfer() {
     if (!selectedUser) return
     setLoading(true)
