@@ -20,6 +20,10 @@ export async function getConversationsAction(): Promise<ActionResult<{ conversat
   const meta = (orgData?.metadata as any) || {}
   const showAssignedAgent = !!meta.show_assigned_agent
 
+  // Get user's team member data to know their department
+  const { data: teamData } = await supabase.from('team_members').select('*').eq('user_id', user.id).eq('org_id', profile.org_id).maybeSingle()
+  const teamMember = teamData as any
+
   const { data: conversations, error } = await supabase
     .from('conversations')
     .select(`
@@ -29,6 +33,7 @@ export async function getConversationsAction(): Promise<ActionResult<{ conversat
       last_message_preview,
       unread_count,
       status,
+      department_id,
       contact:contacts(*),
       assigned_to,
       assigned_user:users!conversations_assigned_to_fkey(full_name, avatar_url)
@@ -41,7 +46,7 @@ export async function getConversationsAction(): Promise<ActionResult<{ conversat
     return err('Error al obtener conversaciones')
   }
 
-  return ok({ conversations, showAssignedAgent })
+  return ok({ conversations, showAssignedAgent, currentUser: { id: user.id, departmentId: teamMember?.department_id, role: teamMember?.role || 'admin' } })
 }
 
 export async function getMessagesAction(conversationId: string): Promise<ActionResult<any[]>> {

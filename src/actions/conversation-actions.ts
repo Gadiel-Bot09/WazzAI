@@ -137,21 +137,22 @@ export async function transferConversationAction(
 }
 
 // ─── GET ORG USERS ────────────────────────────────────────────────────────────
+// ─── GET TRANSFER TARGETS ─────────────────────────────────────────────────────
 
-export async function getOrgUsersAction(): Promise<ActionResult<any[]>> {
+export async function getTransferTargetsAction(): Promise<ActionResult<{ departments: any[], members: any[] }>> {
   const ctx = await getUserAndOrg()
   if (!ctx || !ctx.orgId) return err('No autorizado')
-
   const admin = createAdminClient()
-  const { data, error } = await (admin as any)
-    .from('users')
-    .select('id, full_name, email, role, avatar_url')
-    .eq('org_id', ctx.orgId)
-    .eq('is_active', true)
-    .order('full_name')
+  
+  const [deptsRes, membersRes] = await Promise.all([
+    admin.from('departments').select('*').eq('org_id', ctx.orgId).order('name'),
+    admin.from('team_members').select('*, users:user_id(full_name, email)').eq('org_id', ctx.orgId)
+  ])
 
-  if (error) return err('Error al obtener usuarios')
-  return ok(data)
+  if (deptsRes.error) return err(deptsRes.error.message)
+  if (membersRes.error) return err(membersRes.error.message)
+
+  return ok({ departments: deptsRes.data || [], members: membersRes.data || [] })
 }
 
 // ─── SCHEDULE REMINDER ────────────────────────────────────────────────────────
@@ -249,6 +250,63 @@ export async function getSurveyReportAction(opts: {
 
   return ok({ surveys, total: count ?? 0, avgScore, responseRate, distribution })
 }
+
+// ── TAKEOVER ────────────────────────────────────────────────────────────────
+
+export async function takeoverConversationAction(conversationId: string, assignedToUserId: string) {
+  try {
+    const admin = createAdminClient()
+
+    // 1. Mark conversation as assigned and turn off AI
+    const { data, error } = await admin
+      .from('conversations')
+      .update({
+        is_ai_active: false,
+        assigned_to: assignedToUserId,
+        status: 'open' // Keep it open so it shows in the agent's inbox
+      })
+      .eq('id', conversationId)
+      .select('*, contact:contacts(*)')
+      .single()
+
+    if (error) return err(error.message)
+
+    // 2. End any active flows for this contact so the AI doesn't resume
+    await admin
+      .from('flow_states')
+      .update({ status: 'completed' })
+      .eq('contact_id', (data as any).contact_id)
+      .eq('status', 'active')
+
+    return ok(data)
+  } catch (e: any) {
+    return err(e.message)
+  }
+}
+
+export async function reassignConversationAction(conversationId: string, departmentId: string | null, assignedToUserId: string | null) {
+  try {
+    const admin = createAdminClient()
+
+    const payload: any = {}
+    if (departmentId !== undefined) payload.department_id = departmentId
+    if (assignedToUserId !== undefined) payload.assigned_to = assignedToUserId
+
+    const { data, error } = await admin
+      .from('conversations')
+      .update(payload)
+      .eq('id', conversationId)
+      .select('*, contact:contacts(*)')
+      .single()
+
+    if (error) return err(error.message)
+    return ok(data)
+  } catch (e: any) {
+    return err(e.message)
+  }
+}
+
+
 
 // ─── DELETE CONVERSATION ──────────────────────────────────────────────────────
 

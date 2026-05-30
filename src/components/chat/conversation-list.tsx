@@ -6,7 +6,7 @@ import { es } from 'date-fns/locale'
 import { Search, Bot, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
-type Filter = 'all' | 'open' | 'pending' | 'closed'
+type Filter = 'inbox' | 'mine' | 'ai' | 'closed'
 
 interface ConversationListProps {
   conversations: any[]
@@ -14,23 +14,54 @@ interface ConversationListProps {
   onSelect: (id: string) => void
   onDelete?: (id: string) => void
   showAssignedAgent?: boolean
+  currentUser?: any
 }
 
 const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'Todos' },
-  { key: 'open', label: 'Abiertos' },
-  { key: 'pending', label: 'Pendientes' },
+  { key: 'inbox', label: 'Bandeja' },
+  { key: 'mine', label: 'Míos' },
+  { key: 'ai', label: 'IA' },
   { key: 'closed', label: 'Cerrados' },
 ]
 
-export function ConversationList({ conversations, activeId, onSelect, onDelete, showAssignedAgent }: ConversationListProps) {
+export function ConversationList({ conversations, activeId, onSelect, onDelete, showAssignedAgent, currentUser }: ConversationListProps) {
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<Filter>('all')
+  const [filter, setFilter] = useState<Filter>('inbox')
+
+  const isMatchingFilter = (conv: any, filterType: Filter) => {
+    if (filterType === 'closed') {
+      return conv.status === 'closed'
+    }
+    
+    // For other tabs, don't show closed conversations
+    if (conv.status === 'closed') return false
+
+    if (filterType === 'ai') {
+      return conv.is_ai_active === true
+    }
+
+    // For human tabs (inbox, mine), don't show AI active conversations
+    if (conv.is_ai_active === true) return false
+
+    if (filterType === 'mine') {
+      return conv.assigned_to === currentUser?.id
+    }
+
+    if (filterType === 'inbox') {
+      // Show unassigned conversations, or conversations assigned to my department
+      if (conv.assigned_to && conv.assigned_to !== currentUser?.id) return false // someone else took it
+      if (conv.department_id && conv.department_id !== currentUser?.departmentId) return false // wrong department
+      return true
+    }
+
+    return false
+  }
 
   const filtered = useMemo(() => {
     return conversations.filter((conv) => {
-      // Status filter
-      if (filter !== 'all' && conv.status !== filter) return false
+      // Status/Routing filter
+      if (!isMatchingFilter(conv, filter)) return false
+      
       // Search filter
       if (search.trim()) {
         const q = search.toLowerCase()
@@ -40,7 +71,7 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
       }
       return true
     })
-  }, [conversations, search, filter])
+  }, [conversations, search, filter, currentUser])
 
   return (
     <div className="flex flex-col h-full">
@@ -71,9 +102,7 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
           >
             {f.label}
             <span className="ml-1 text-[10px] opacity-60">
-              {f.key === 'all'
-                ? conversations.length
-                : conversations.filter((c) => c.status === f.key).length}
+              {conversations.filter(c => isMatchingFilter(c, f.key)).length}
             </span>
           </button>
         ))}

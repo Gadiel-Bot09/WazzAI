@@ -17,6 +17,7 @@ import {
   MessageSquareText,
   Star,
   Workflow,
+  Building,
 } from 'lucide-react'
 
 const navItems = [
@@ -60,9 +61,24 @@ const navItems = [
     href: '/dashboard/automations',
     icon: Workflow,
   },
+  {
+    label: 'Configuración de IA',
+    href: '/dashboard/settings',
+    icon: Settings,
+  },
 ]
 
 const bottomItems = [
+  {
+    label: 'Departamentos',
+    href: '/dashboard/settings/departments',
+    icon: Building,
+  },
+  {
+    label: 'Equipos',
+    href: '/dashboard/settings/team',
+    icon: Users,
+  },
   {
     label: 'Mensajes predefinidos',
     href: '/dashboard/settings/canned-messages',

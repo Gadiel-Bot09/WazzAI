@@ -18,6 +18,11 @@ export function RealtimeListener({ orgId }: RealtimeListenerProps) {
   useEffect(() => {
     if (!orgId) return
 
+    // Request Notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+
     // I1-FIX: On new message — dispatch custom event for ChatWindow + refresh conversation list
     const messagesChannel = supabase
       .channel('messages_changes')
@@ -30,13 +35,30 @@ export function RealtimeListener({ orgId }: RealtimeListenerProps) {
           filter: `org_id=eq.${orgId}`
         },
         (payload) => {
-          // Notify active ChatWindow (if open) with the conversation_id
-          const conversationId = (payload.new as any)?.conversation_id
+          const newMsg = payload.new as any
+          const conversationId = newMsg?.conversation_id
           if (conversationId) {
             window.dispatchEvent(
               new CustomEvent(REALTIME_NEW_MESSAGE_EVENT, { detail: { conversationId } })
             )
           }
+
+          // Browser Notification for new incoming messages from contacts
+          if (newMsg?.sender_type === 'contact' && 'Notification' in window && Notification.permission === 'granted') {
+            // Only show if the page is hidden or user is not looking at it, or maybe always show if it's not the active chat?
+            // Since we don't have active chat ID here easily, we can check document visibility.
+            if (document.hidden) {
+              const notif = new Notification('Nuevo mensaje en WazzAI', {
+                body: newMsg.content || 'Mensaje multimedia',
+                icon: '/icon-192x192.png' // Or whatever icon
+              })
+              notif.onclick = () => {
+                window.focus()
+                notif.close()
+              }
+            }
+          }
+
           // Also refresh server components (conversation list timestamps/previews)
           router.refresh()
         }

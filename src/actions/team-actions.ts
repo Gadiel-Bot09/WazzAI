@@ -1,0 +1,171 @@
+'use server'
+
+import { createAdminClient } from '@/lib/supabase/server'
+import { ok, err } from '@/lib/utils/action-utils'
+
+// ── DEPARTMENTS ─────────────────────────────────────────────────────────────
+
+export async function getDepartmentsAction(orgId: string) {
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from('departments')
+      .select('*')
+      .eq('org_id', orgId)
+      .order('created_at', { ascending: true })
+
+    if (error) return err(error.message)
+    return ok(data)
+  } catch (e: any) {
+    return err(e.message)
+  }
+}
+
+export async function createDepartmentAction(orgId: string, payload: { name: string, description?: string }) {
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from('departments')
+      .insert({ org_id: orgId, ...payload })
+      .select('*')
+      .single()
+
+    if (error) return err(error.message)
+    return ok(data)
+  } catch (e: any) {
+    return err(e.message)
+  }
+}
+
+export async function updateDepartmentAction(id: string, orgId: string, payload: { name: string, description?: string }) {
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from('departments')
+      .update(payload)
+      .eq('id', id)
+      .eq('org_id', orgId)
+      .select('*')
+      .single()
+
+    if (error) return err(error.message)
+    return ok(data)
+  } catch (e: any) {
+    return err(e.message)
+  }
+}
+
+export async function deleteDepartmentAction(id: string, orgId: string) {
+  try {
+    const admin = createAdminClient()
+    const { error } = await admin
+      .from('departments')
+      .delete()
+      .eq('id', id)
+      .eq('org_id', orgId)
+
+    if (error) return err(error.message)
+    return ok(true)
+  } catch (e: any) {
+    return err(e.message)
+  }
+}
+
+// ── TEAM MEMBERS ────────────────────────────────────────────────────────────
+
+export async function getTeamMembersAction(orgId: string) {
+  try {
+    const admin = createAdminClient()
+    // Fetch team members with their users and department
+    const { data, error } = await admin
+      .from('team_members')
+      .select(`
+        *,
+        users:user_id(id, full_name, email, avatar_url),
+        departments:department_id(id, name)
+      `)
+      .eq('org_id', orgId)
+      .order('created_at', { ascending: false })
+
+    if (error) return err(error.message)
+    return ok(data)
+  } catch (e: any) {
+    return err(e.message)
+  }
+}
+
+export async function updateTeamMemberAction(id: string, orgId: string, payload: { role?: string, department_id?: string | null }) {
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from('team_members')
+      .update(payload)
+      .eq('id', id)
+      .eq('org_id', orgId)
+      .select('*')
+      .single()
+
+    if (error) return err(error.message)
+    return ok(data)
+  } catch (e: any) {
+    return err(e.message)
+  }
+}
+
+export async function removeTeamMemberAction(id: string, orgId: string) {
+  try {
+    const admin = createAdminClient()
+    // Note: this only removes them from the team, it doesn't delete their auth user or user record.
+    const { error } = await admin
+      .from('team_members')
+      .delete()
+      .eq('id', id)
+      .eq('org_id', orgId)
+
+    if (error) return err(error.message)
+    return ok(true)
+  } catch (e: any) {
+    return err(e.message)
+  }
+}
+
+// Invite is more complex: typically involves auth.admin.inviteUserByEmail 
+// and then creating a team_member record. For now we will just create a placeholder action
+export async function inviteTeamMemberAction(orgId: string, email: string, role: string, department_id?: string) {
+  try {
+    const admin = createAdminClient()
+    
+    // 1. Check if user already exists
+    const { data: existingUser } = await admin.from('users').select('id, email').eq('email', email).maybeSingle()
+    
+    let userId = existingUser?.id
+
+    if (!userId) {
+      // 2. If not, invite them via Supabase Auth Admin
+      const { data: authData, error: authErr } = await admin.auth.admin.inviteUserByEmail(email)
+      if (authErr) return err(authErr.message)
+      userId = authData.user.id
+      
+      // Wait briefly for trigger to create user (if you have one), otherwise we might need to insert it manually
+      // Assuming you have a trigger, or we just insert it. Let's insert a placeholder if no trigger exists.
+      const { error: userErr } = await admin.from('users').insert({ id: userId, email, full_name: 'Invitado' }).select().maybeSingle()
+      // Ignore error if it violates unique constraint because trigger already created it
+    }
+
+    // 3. Add to team_members
+    const { error: teamErr } = await admin
+      .from('team_members')
+      .insert({
+        org_id: orgId,
+        user_id: userId,
+        role: role,
+        department_id: department_id || null
+      })
+
+    if (teamErr) return err('El usuario ya pertenece al equipo o hubo un error al añadirlo: ' + teamErr.message)
+    
+    return ok(true)
+  } catch (e: any) {
+    return err(e.message)
+  }
+}

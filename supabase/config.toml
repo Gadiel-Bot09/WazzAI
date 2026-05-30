@@ -1,8 +1,6 @@
 # For detailed configuration reference documentation, visit:
 # https://supabase.com/docs/guides/local-development/cli/config
 
-[project]
-project_id = "wazzai"
 
 [api]
 enabled = true
@@ -29,9 +27,6 @@ max_client_conn = 100
 [realtime]
 enabled = true
 ip_version = "IPv4"
-heartbeat_interval_ms = 30000
-min_messages_per_second = 100
-max_concurrent_users = 200
 
 [studio]
 enabled = true

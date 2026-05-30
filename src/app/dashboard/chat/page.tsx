@@ -18,7 +18,11 @@ async function ChatDataFetcher() {
     )
   }
 
-  return <ChatLayout initialConversations={res.data.conversations} showAssignedAgent={res.data.showAssignedAgent} />
+  return <ChatLayout 
+    initialConversations={res.data.conversations} 
+    showAssignedAgent={res.data.showAssignedAgent} 
+    currentUser={res.data.currentUser}
+  />
 }
 
 export default function ChatPage() {

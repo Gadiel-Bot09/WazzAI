@@ -26,6 +26,7 @@ interface ChatWindowProps {
   status?: 'open' | 'closed' | 'pending'
   assignedUser?: { full_name: string, avatar_url: string } | null
   showAssignedAgent?: boolean
+  currentUser?: any
 }
 
 export function ChatWindow({
@@ -36,6 +37,7 @@ export function ChatWindow({
   status: initialStatus = 'open',
   assignedUser,
   showAssignedAgent = false,
+  currentUser,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -241,6 +243,32 @@ export function ChatWindow({
           <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground text-sm">
             <Lock className="w-4 h-4" />
             <span>La conversación está cerrada — no se pueden enviar mensajes</span>
+          </div>
+        ) : aiActive ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-4 text-muted-foreground text-sm bg-primary/5 border border-primary/10 rounded-xl">
+            <div className="flex items-center gap-2">
+              <Bot className="w-5 h-5 text-primary" />
+              <span className="font-medium text-foreground">El asistente virtual está atendiendo este chat</span>
+            </div>
+            <p className="text-center max-w-md text-xs">
+              La conversación es de solo lectura mientras la IA esté activa. Si deseas intervenir, puedes tomar el control del chat.
+            </p>
+            <Button 
+              onClick={async () => {
+                if (!currentUser?.id) return
+                toast.loading('Tomando control del chat...', { id: 'takeover' })
+                const { takeoverConversationAction } = await import('@/actions/conversation-actions')
+                const res = await takeoverConversationAction(conversationId, currentUser.id)
+                if (res.success) {
+                  setAiActive(false)
+                  toast.success('Has tomado el control del chat', { id: 'takeover' })
+                } else {
+                  toast.error(res.error || 'Error al tomar el chat', { id: 'takeover' })
+                }
+              }}
+            >
+              Tomar Chat y Pausar IA
+            </Button>
           </div>
         ) : (
           <form onSubmit={handleSend} className="flex items-end gap-2">

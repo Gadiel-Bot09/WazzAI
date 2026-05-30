@@ -29,8 +29,9 @@ import {
   reopenConversationAction,
   transferConversationAction,
   scheduleReminderAction,
-  getOrgUsersAction,
+  getTransferTargetsAction,
   deleteConversationAction,
+  reassignConversationAction
 } from '@/actions/conversation-actions'
 
 interface ConversationActionsMenuProps {
@@ -65,9 +66,11 @@ export function ConversationActionsMenu({
   const [feedback, setFeedback] = useState<{ success: boolean; message: string } | null>(null)
 
   // Transfer state
-  const [orgUsers, setOrgUsers] = useState<any[]>([])
-  const [selectedUser, setSelectedUser] = useState<string>('')
-  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [departments, setDepartments] = useState<any[]>([])
+  const [teamMembers, setTeamMembers] = useState<any[]>([])
+  const [selectedDept, setSelectedDept] = useState<string>('none')
+  const [selectedUser, setSelectedUser] = useState<string>('none')
+  const [loadingTargets, setLoadingTargets] = useState(false)
 
   // Reminder state
   const [reminderMsg, setReminderMsg] = useState('')
@@ -87,10 +90,13 @@ export function ConversationActionsMenu({
   async function openTransfer() {
     setModal('transfer')
     setMenuOpen(false)
-    setLoadingUsers(true)
-    const res = await getOrgUsersAction()
-    setLoadingUsers(false)
-    if (res.success) setOrgUsers(res.data)
+    setLoadingTargets(true)
+    const res = await getTransferTargetsAction()
+    setLoadingTargets(false)
+    if (res.success) {
+      setDepartments(res.data.departments)
+      setTeamMembers(res.data.members)
+    }
   }
 
   async function handleClose() {
@@ -98,12 +104,10 @@ export function ConversationActionsMenu({
     const res = await closeConversationAction(conversationId, sendSurvey)
     setLoading(false)
     if (!res.success) {
-      showFeedback(false, res.error ?? 'Error al cerrar')
+      showFeedback(false, res.error || 'Error al cerrar')
     } else {
-      showFeedback(true, sendSurvey
-        ? 'Conversación cerrada y encuesta enviada ✓'
-        : 'Conversación cerrada ✓')
-      setModal('none')
+      showFeedback(true, 'Conversación cerrada')
+      setTimeout(() => setModal('none'), 1000)
     }
   }
 
@@ -111,19 +115,13 @@ export function ConversationActionsMenu({
     setLoading(true)
     const res = await reopenConversationAction(conversationId)
     setLoading(false)
-    showFeedback(res.success, res.success ? 'Conversación reabierta ✓' : (res.error ?? 'Error'))
-    setMenuOpen(false)
-  }
-
-  async function handleDelete() {
-    setLoading(true)
-    const res = await deleteConversationAction(conversationId)
-    setLoading(false)
     if (!res.success) {
-      showFeedback(false, res.error ?? 'Error al eliminar')
+      showFeedback(false, res.error || 'Error al reabrir')
     } else {
-      showFeedback(true, 'Conversación eliminada ✓')
-      setModal('none')
+      showFeedback(true, 'Conversación reabierta')
+      setTimeout(() => {
+        setMenuOpen(false)
+      }, 1000)
     }
   }
 
@@ -321,48 +319,49 @@ export function ConversationActionsMenu({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserRoundCog className="w-5 h-5 text-blue-500" />
-              Transferir conversación
+              Transferir o Reasignar chat
             </DialogTitle>
             <DialogDescription>
-              Selecciona el agente que tomará el control de esta conversación.
+              Selecciona el departamento o agente al que deseas transferir esta conversación.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-2 space-y-3">
-            {loadingUsers ? (
+          <div className="py-2 space-y-4">
+            {loadingTargets ? (
               <div className="flex justify-center py-4">
                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
               </div>
             ) : (
-              <div className="grid gap-2 max-h-48 overflow-y-auto pr-1">
-                {orgUsers.map(u => (
-                  <label
-                    key={u.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      selectedUser === u.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                    }`}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Asignar a Departamento</Label>
+                  <select 
+                    className="w-full flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={selectedDept}
+                    onChange={(e) => setSelectedDept(e.target.value)}
                   >
-                    <input
-                      type="radio"
-                      name="transfer-user"
-                      value={u.id}
-                      checked={selectedUser === u.id}
-                      onChange={() => setSelectedUser(u.id)}
-                      className="accent-primary"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{u.full_name || u.email}</p>
-                      <p className="text-xs text-muted-foreground truncate">{u.role}</p>
-                    </div>
-                  </label>
-                ))}
-                {orgUsers.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No hay otros usuarios disponibles
-                  </p>
-                )}
+                    <option value="none">Cualquiera (Bandeja general)</option>
+                    {departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Asignar a Agente Específico</Label>
+                  <select 
+                    className="w-full flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={selectedUser}
+                    onChange={(e) => setSelectedUser(e.target.value)}
+                  >
+                    <option value="none">Sin asignar (En bandeja del departamento)</option>
+                    {teamMembers.filter(m => selectedDept === 'none' || m.department_id === selectedDept || !m.department_id).map(m => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.users?.full_name || m.users?.email || 'Usuario'} ({m.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
 
@@ -371,7 +370,7 @@ export function ConversationActionsMenu({
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setModal('none')}>Cancelar</Button>
-            <Button onClick={handleTransfer} disabled={loading || !selectedUser}>
+            <Button onClick={handleTransfer} disabled={loading || (selectedDept === 'none' && selectedUser === 'none')}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Transferir
             </Button>

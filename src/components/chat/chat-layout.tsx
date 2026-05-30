@@ -9,9 +9,10 @@ import { toast } from 'sonner'
 interface ChatLayoutProps {
   initialConversations: any[]
   showAssignedAgent: boolean
+  currentUser: any
 }
 
-export function ChatLayout({ initialConversations, showAssignedAgent }: ChatLayoutProps) {
+export function ChatLayout({ initialConversations, showAssignedAgent, currentUser }: ChatLayoutProps) {
   const [conversations, setConversations] = useState(initialConversations)
   const [activeId, setActiveId] = useState<string | null>(
     initialConversations.length > 0 ? initialConversations[0].id : null
@@ -51,6 +52,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent }: ChatLayo
             onSelect={setActiveId} 
             onDelete={handleDelete}
             showAssignedAgent={showAssignedAgent}
+            currentUser={currentUser}
           />
         </div>
       </div>
@@ -66,6 +68,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent }: ChatLayo
             status={activeConversation.status}
             assignedUser={activeConversation.assigned_user}
             showAssignedAgent={showAssignedAgent}
+            currentUser={currentUser}
           />
         ) : (
           <div className="flex h-full items-center justify-center flex-col text-muted-foreground p-8 text-center bg-slate-50 dark:bg-background">
