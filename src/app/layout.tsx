@@ -67,6 +67,8 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
+import { Toaster } from 'sonner'
+
 export default function RootLayout({
   children,
 }: {
@@ -77,6 +79,7 @@ export default function RootLayout({
       <head />
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   )
