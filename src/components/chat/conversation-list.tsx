@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Search, Bot } from 'lucide-react'
+import { Search, Bot, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
 type Filter = 'all' | 'open' | 'pending' | 'closed'
@@ -12,6 +12,7 @@ interface ConversationListProps {
   conversations: any[]
   activeId: string | null
   onSelect: (id: string) => void
+  onDelete?: (id: string) => void
   showAssignedAgent?: boolean
 }
 
@@ -22,7 +23,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'closed', label: 'Cerrados' },
 ]
 
-export function ConversationList({ conversations, activeId, onSelect, showAssignedAgent }: ConversationListProps) {
+export function ConversationList({ conversations, activeId, onSelect, onDelete, showAssignedAgent }: ConversationListProps) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
 
@@ -90,14 +91,33 @@ export function ConversationList({ conversations, activeId, onSelect, showAssign
             const contact = conv.contact
 
             return (
-              <button
+              <div
                 key={conv.id}
-                onClick={() => onSelect(conv.id)}
-                className={`flex flex-col items-start p-4 border-b border-border transition-colors hover:bg-muted/50 text-left w-full ${
+                className={`group relative flex flex-col items-start p-4 border-b border-border transition-colors hover:bg-muted/50 text-left w-full ${
                   isActive ? 'bg-muted border-l-4 border-l-primary' : 'border-l-4 border-l-transparent'
                 }`}
               >
-                <div className="flex w-full justify-between items-center mb-1">
+                {/* Trash button appears on hover */}
+                {onDelete && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (window.confirm('¿Seguro que deseas eliminar este chat?')) {
+                        onDelete(conv.id)
+                      }
+                    }}
+                    className="absolute right-2 top-2 p-1.5 rounded-md bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-destructive hover:text-destructive-foreground"
+                    title="Eliminar chat"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+
+                <button
+                  onClick={() => onSelect(conv.id)}
+                  className="w-full flex flex-col text-left"
+                >
+                  <div className="flex w-full justify-between items-center mb-1">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="font-semibold text-sm truncate">
                       {contact?.name || contact?.phone_number || 'Desconocido'}
@@ -131,6 +151,7 @@ export function ConversationList({ conversations, activeId, onSelect, showAssign
                   )}
                 </div>
               </button>
+            </div>
             )
           })
         )}

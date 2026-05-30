@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { saveAndSendAIMessage } from '../ai/rag'
+import { saveAndSendAIMessage, saveAndSendMediaMessage } from '../ai/rag'
 
 export async function processAutomations({
   orgId,
@@ -115,33 +115,128 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
         contactPhone: phone,
         replyText: currentNode.data.content || '',
       })
+    } else if (currentNode.data.actionType === 'image') {
+      // Send image
+      if (currentNode.data.url) {
+        await saveAndSendMediaMessage({
+          conversationId,
+          orgId,
+          contactPhone: phone,
+          mediaUrl: currentNode.data.url,
+          caption: currentNode.data.content,
+          mediaType: 'image'
+        })
+      }
+    } else if (currentNode.data.actionType === 'delay') {
+      // Pause execution
+      const seconds = currentNode.data.seconds || 5
+      await new Promise(resolve => setTimeout(resolve, seconds * 1000))
     } else if (currentNode.data.actionType === 'handoff') {
       // End flow, turn off AI, mark as pending?
       await (admin as any).from('conversations').update({ is_ai_active: false, status: 'pending' }).eq('id', conversationId)
       await endFlow(state.id)
       return true
+    } else if (currentNode.data.actionType === 'menu') {
+      if (!state.state_data.waiting_for_input) {
+        // Send menu message and wait
+        await saveAndSendAIMessage({
+          conversationId,
+          orgId,
+          contactPhone: phone,
+          replyText: currentNode.data.content || 'Selecciona una opción',
+        })
+        await (admin as any).from('flow_states').update({
+          current_node_id: currentNodeId,
+          state_data: { waiting_for_input: true, options: currentNode.data.options }
+        }).eq('id', state.id)
+        return true
+      } else {
+        // Resuming from menu
+        const options = state.state_data.options || []
+        const inputStr = incomingText.trim().toLowerCase()
+        const matchedOption = options.find((opt: string) => opt.toLowerCase() === inputStr)
+        
+        if (matchedOption) {
+          state.state_data.waiting_for_input = false
+          // We need to branch using matchedOption
+          const nextEdge = edges.find((e: any) => e.source === currentNodeId && e.sourceHandle === matchedOption)
+          if (nextEdge) {
+            currentNodeId = nextEdge.target
+            await (admin as any).from('flow_states').update({
+              current_node_id: currentNodeId,
+              state_data: state.state_data
+            }).eq('id', state.id)
+            continue // Skip default next Edge routing
+          } else {
+            await endFlow(state.id)
+            return true
+          }
+        } else {
+          // Invalid option, send error or wait again
+          await saveAndSendAIMessage({
+            conversationId,
+            orgId,
+            contactPhone: phone,
+            replyText: 'Opción no válida. Por favor, selecciona una de las opciones del menú.',
+          })
+          return true
+        }
+      }
     } else if (currentNode.data.actionType === 'condition') {
       // If we just arrived here, wait for input
       if (!state.state_data.waiting_for_condition) {
         await (admin as any).from('flow_states').update({
           current_node_id: currentNodeId,
-          state_data: { waiting_for_condition: true, expected: currentNode.data.keyword }
+          state_data: { waiting_for_condition: true, expected: currentNode.data.keyword, operator: currentNode.data.operator }
         }).eq('id', state.id)
         return true
       } else {
         // We are resuming
-        const expected = state.state_data.expected?.toLowerCase()
-        if (expected && incomingText.toLowerCase().includes(expected)) {
-          // Condition passed, clear waiting state
-          state.state_data.waiting_for_condition = false
+        const expected = state.state_data.expected?.toLowerCase() || ''
+        const operator = state.state_data.operator || 'contains'
+        const inputStr = incomingText.toLowerCase()
+        
+        let conditionPassed = false
+        if (operator === 'contains') {
+          conditionPassed = inputStr.includes(expected)
+        } else if (operator === 'equals') {
+          conditionPassed = inputStr === expected
+        } else if (operator === 'startsWith') {
+          conditionPassed = inputStr.startsWith(expected)
+        }
+
+        state.state_data.waiting_for_condition = false
+        
+        // Branch
+        const handleId = conditionPassed ? 'true' : 'false'
+        const nextEdge = edges.find((e: any) => e.source === currentNodeId && e.sourceHandle === handleId)
+        
+        if (nextEdge) {
+          currentNodeId = nextEdge.target
+          await (admin as any).from('flow_states').update({
+            current_node_id: currentNodeId,
+            state_data: state.state_data
+          }).eq('id', state.id)
+          continue
         } else {
-          // Condition failed, stay here (maybe send a fallback message in the future)
-          return true
+          // If there's no edge, try the default one (fallback), or end flow
+          const defaultEdge = edges.find((e: any) => e.source === currentNodeId && !e.sourceHandle)
+          if (defaultEdge) {
+            currentNodeId = defaultEdge.target
+            await (admin as any).from('flow_states').update({
+              current_node_id: currentNodeId,
+              state_data: state.state_data
+            }).eq('id', state.id)
+            continue
+          } else {
+            await endFlow(state.id)
+            return true
+          }
         }
       }
     }
 
-    // Move to next node
+    // Move to next node (default linear progression for non-branching nodes)
     const nextEdge = edges.find((e: any) => e.source === currentNodeId)
     if (nextEdge) {
       currentNodeId = nextEdge.target

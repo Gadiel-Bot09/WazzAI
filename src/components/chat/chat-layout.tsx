@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { ConversationList } from './conversation-list'
 import { ChatWindow } from './chat-window'
+import { deleteConversationAction } from '@/actions/conversation-actions'
+import { toast } from 'sonner'
 
 interface ChatLayoutProps {
   initialConversations: any[]
@@ -17,6 +19,20 @@ export function ChatLayout({ initialConversations, showAssignedAgent }: ChatLayo
 
   const activeConversation = conversations.find(c => c.id === activeId)
 
+  const handleDelete = async (id: string) => {
+    // Optimistic UI update
+    setConversations(prev => prev.filter(c => c.id !== id))
+    if (activeId === id) setActiveId(null)
+    
+    const res = await deleteConversationAction(id)
+    if (!res.success) {
+      toast.error(res.message || 'Error al eliminar chat')
+      // If error, we might want to revert, but revalidation will fix it soon
+    } else {
+      toast.success('Chat eliminado')
+    }
+  }
+
   return (
     <div className="flex w-full h-full">
       {/* Sidebar - Lista de Conversaciones */}
@@ -29,6 +45,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent }: ChatLayo
             conversations={conversations} 
             activeId={activeId} 
             onSelect={setActiveId} 
+            onDelete={handleDelete}
             showAssignedAgent={showAssignedAgent}
           />
         </div>

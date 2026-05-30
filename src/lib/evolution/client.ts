@@ -155,6 +155,34 @@ export class EvolutionClient {
   }
 
   /**
+   * Envia un mensaje de tipo Media (Imagen/Audio/Video/Documento) a un número
+   */
+  async sendMedia(orgId: string, phone: string, mediaUrl: string, mediaType: 'image' | 'audio' | 'video' | 'document', caption?: string): Promise<any> {
+    const instanceName = this.getInstanceName(orgId)
+
+    const response = await fetch(`${this.baseUrl}/message/sendMedia/${instanceName}`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({
+        number: phone,
+        options: { delay: 1200 },
+        mediaMessage: {
+          mediatype: mediaType,
+          caption: caption || '',
+          media: mediaUrl,
+        }
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`Error sending media message: ${error}`)
+    }
+
+    return response.json()
+  }
+
+  /**
    * Cierra sesión (desconecta) la instancia
    */
   async logoutInstance(orgId: string): Promise<boolean> {

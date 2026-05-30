@@ -240,3 +240,48 @@ export async function saveAndSendAIMessage({
     last_message_preview: `🤖 ${replyText.substring(0, 47)}`,
   }).eq('id', conversationId)
 }
+
+export async function saveAndSendMediaMessage({
+  conversationId,
+  orgId,
+  contactPhone,
+  mediaUrl,
+  caption,
+  mediaType = 'image'
+}: {
+  conversationId: string
+  orgId: string
+  contactPhone: string
+  mediaUrl: string
+  caption?: string
+  mediaType?: 'image' | 'video' | 'document' | 'audio'
+}): Promise<void> {
+  const admin = createAdminClient()
+
+  const textContent = caption || '[Media]'
+
+  // 1. Save in DB
+  await (admin as any).from('messages').insert({
+    conversation_id: conversationId,
+    org_id: orgId,
+    direction: 'ai',
+    content: textContent,
+    message_type: mediaType,
+    media_url: mediaUrl,
+    status: 'sent',
+    sent_at: new Date().toISOString(),
+  })
+
+  // 2. Send via WhatsApp (Evolution API)
+  try {
+    await evolutionClient.sendMedia(orgId, contactPhone, mediaUrl, mediaType, caption)
+  } catch (err) {
+    console.error('[RAG] Failed to send Media message via Evolution:', err)
+  }
+
+  // 3. Update conversation last message
+  await (admin as any).from('conversations').update({
+    last_message_at: new Date().toISOString(),
+    last_message_preview: `🤖 📎 Adjunto`,
+  }).eq('id', conversationId)
+}
