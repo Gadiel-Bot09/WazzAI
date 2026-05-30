@@ -32,7 +32,7 @@ export function CustomNode({ data, isConnectable }: NodeProps) {
 
       <div className="p-3 text-xs text-muted-foreground flex flex-col gap-1">
         {actionType === 'message' && <div className="truncate">{data.content ? data.content as string : 'Sin contenido'}</div>}
-        {actionType === 'delay' && <div>Retardo: {data.seconds || 5}s</div>}
+        {actionType === 'delay' && <div>Retardo: {(data.seconds as number) || 5}s</div>}
         {actionType === 'image' && <div className="truncate">{data.url ? 'Imagen cargada' : 'Sin imagen'}</div>}
         {actionType === 'handoff' && <div>Detiene IA y transfiere</div>}
         

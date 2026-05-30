@@ -123,7 +123,8 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
     setUploading(true)
     try {
       const res = await getUploadUrlAction(file.name, file.type)
-      if (!res.success || !res.data) throw new Error(res.error || 'Error al obtener URL')
+      if (!res.success) throw new Error(res.error || 'Error al obtener URL')
+      if (!res.data) throw new Error('Error al obtener URL')
       
       const { uploadUrl, publicUrl } = res.data
 
