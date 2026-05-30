@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Save, Loader2, MessageSquare, ShieldAlert, KeyRound } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, MessageSquare, ShieldAlert, KeyRound, Trash } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { CustomNode } from './custom-node'
 import { getUploadUrlAction } from '@/actions/storage'
@@ -369,14 +369,44 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Opciones válidas separadas por coma</Label>
-                    <Input 
-                      value={(selectedNode.data.options as string[] || ['1', '2', '3']).join(',')} 
-                      onChange={e => updateSelectedNodeData('options', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                      placeholder="ej: 1, 2, 3"
-                      className="h-8 text-sm"
-                    />
-                    <p className="text-[10px] text-muted-foreground">El flujo esperará por uno de estos números/textos y seguirá la rama correspondiente.</p>
+                    <Label className="text-xs">Opciones del Menú</Label>
+                    {(selectedNode.data.options as string[] || ['1', '2', '3']).map((opt, i) => (
+                      <div key={i} className="flex gap-2">
+                        <Input 
+                          value={opt}
+                          onChange={e => {
+                            const newOpts = [...(selectedNode.data.options as string[] || ['1', '2', '3'])]
+                            newOpts[i] = e.target.value
+                            updateSelectedNodeData('options', newOpts)
+                          }}
+                          className="h-8 text-sm"
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          className="h-8 w-8 shrink-0"
+                          onClick={() => {
+                            const newOpts = [...(selectedNode.data.options as string[] || ['1', '2', '3'])]
+                            newOpts.splice(i, 1)
+                            updateSelectedNodeData('options', newOpts)
+                          }}
+                        >
+                          <Trash className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-2"
+                      onClick={() => {
+                        const currentOpts = selectedNode.data.options as string[] || ['1', '2', '3']
+                        updateSelectedNodeData('options', [...currentOpts, `Nueva Opción`])
+                      }}
+                    >
+                      Añadir Opción
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground mt-2">El flujo esperará por uno de estos textos/números y seguirá la rama correspondiente.</p>
                   </div>
                 </div>
               )}
