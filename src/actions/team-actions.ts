@@ -100,8 +100,8 @@ export async function getTeamMembersAction() {
       .from('team_members')
       .select(`
         *,
-        users:user_id(id, full_name, email, avatar_url),
-        departments:department_id(id, name)
+        users (id, full_name, email, avatar_url),
+        departments (id, name)
       `)
       .eq('org_id', orgId)
       .order('created_at', { ascending: false })
