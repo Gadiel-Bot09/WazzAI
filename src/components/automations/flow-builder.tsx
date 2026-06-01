@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Save, Loader2, MessageSquare, ShieldAlert, KeyRound, Trash, Smile } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { CustomNode } from './custom-node'
+import { getDepartmentsAction } from '@/actions/team-actions'
 import { DeletableEdge } from './deletable-edge'
 import { getUploadUrlAction } from '@/actions/storage'
 import { getInstancesListAction } from '@/actions/whatsapp'
@@ -58,9 +59,19 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
     name: initialData.name,
     description: initialData.description || '',
     trigger_type: initialData.trigger_type,
-    trigger_keywords: initialData.trigger_keywords.join(', '),
+    trigger_keywords: initialData.trigger_keywords?.join(', ') || '',
     instance_id: initialData.instance_id || '',
+    is_active: initialData.is_active,
   })
+  const [departments, setDepartments] = useState<any[]>([])
+
+  useEffect(() => {
+    getDepartmentsAction().then(res => {
+      if (res.success && res.data) {
+        setDepartments(res.data)
+      }
+    })
+  }, [])
   const [instances, setInstances] = useState<{id: string, name: string}[]>([])
   const [rfInstance, setRfInstance] = useState<any>(null)
 
@@ -430,10 +441,23 @@ export function FlowBuilder({ initialData }: { initialData: AutomationFlow }) {
               )}
 
               {selectedNode.data.actionType === 'handoff' && (
-                <div className="space-y-1.5">
+                <div className="space-y-3">
                   <p className="text-xs text-muted-foreground">
-                    Este nodo detendrá el flujo y marcará la conversación para que un humano la atienda (notificando en la bandeja de entrada).
+                    Este nodo detendrá el flujo y marcará la conversación para que un humano la atienda.
                   </p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Asignar a un Departamento (Opcional)</Label>
+                    <select 
+                      className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                      value={selectedNode.data.department_id as string || ''}
+                      onChange={e => updateSelectedNodeData('department_id', e.target.value)}
+                    >
+                      <option value="">Cualquier Departamento</option>
+                      {departments.map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               )}
 

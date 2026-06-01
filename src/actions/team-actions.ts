@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils/server'
+import { getBillingInfoAction } from './billing'
 
 // Helper to get current org
 async function getCurrentOrg() {
@@ -40,6 +41,17 @@ export async function createDepartmentAction(payload: { name: string, descriptio
   try {
     const orgId = await getCurrentOrg()
     const admin = createAdminClient() as any
+
+    // Billing Check
+    const billingRes = await getBillingInfoAction()
+    if (billingRes.success && billingRes.data.limits) {
+      const allowedDepts = billingRes.data.limits.departments || 5
+      const { count } = await admin.from('departments').select('*', { count: 'exact', head: true }).eq('org_id', orgId)
+      if (count !== null && count >= allowedDepts) {
+        return err(`Has alcanzado el límite de ${allowedDepts} departamentos para tu plan actual.`)
+      }
+    }
+
     const { data, error } = await admin
       .from('departments')
       .insert({ org_id: orgId, ...payload })
@@ -157,6 +169,16 @@ export async function inviteTeamMemberAction(email: string, role: string, depart
     const orgId = await getCurrentOrg()
     const admin = createAdminClient() as any
     
+    // Billing Check
+    const billingRes = await getBillingInfoAction()
+    if (billingRes.success && billingRes.data.limits) {
+      const allowedAgents = billingRes.data.limits.operators || 1
+      const { count } = await admin.from('team_members').select('*', { count: 'exact', head: true }).eq('org_id', orgId)
+      if (count !== null && count >= allowedAgents) {
+        return err(`Has alcanzado el límite de ${allowedAgents} agentes para tu plan actual.`)
+      }
+    }
+
     // 1. Check if user already exists
     const { data: existingUser } = await admin.from('users').select('id, email').eq('email', email).maybeSingle()
     

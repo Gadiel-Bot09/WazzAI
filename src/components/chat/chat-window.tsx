@@ -63,8 +63,9 @@ export function ChatWindow({
   useEffect(() => {
     setLoading(true)
     setConvStatus(initialStatus)
+    setAiActive(initialAIActive)
     fetchMessages()
-  }, [fetchMessages, initialStatus])
+  }, [fetchMessages, initialStatus, initialAIActive])
 
   // Listen for realtime new message events
   useEffect(() => {

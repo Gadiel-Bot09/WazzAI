@@ -145,8 +145,11 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
         replyText: handoffMsg as string,
         instanceId
       })
-      // End flow, turn off AI, mark as pending?
-      await (admin as any).from('conversations').update({ is_ai_active: false, status: 'pending' }).eq('id', conversationId)
+      const updatePayload: any = { is_ai_active: false, status: 'pending' }
+      if (currentNode.data.department_id) {
+        updatePayload.department_id = currentNode.data.department_id
+      }
+      await (admin as any).from('conversations').update(updatePayload).eq('id', conversationId)
       await endFlow(state.id)
       return true
     } else if (currentNode.data.actionType === 'menu') {

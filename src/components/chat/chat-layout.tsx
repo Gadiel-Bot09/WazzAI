@@ -12,42 +12,82 @@ interface ChatLayoutProps {
   currentUser: any
 }
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 export function ChatLayout({ initialConversations, showAssignedAgent, currentUser }: ChatLayoutProps) {
   const [conversations, setConversations] = useState(initialConversations)
-  const [activeId, setActiveId] = useState<string | null>(
-    initialConversations.length > 0 ? initialConversations[0].id : null
-  )
+  const [activeTab, setActiveTab] = useState('mine')
+  const [activeId, setActiveId] = useState<string | null>(null)
 
   useEffect(() => {
     setConversations(initialConversations)
   }, [initialConversations])
 
-  const activeConversation = conversations.find(c => c.id === activeId)
-
   const handleDelete = async (id: string) => {
-    // Optimistic UI update
     setConversations(prev => prev.filter(c => c.id !== id))
     if (activeId === id) setActiveId(null)
-    
     const res = await deleteConversationAction(id)
-    if (!res.success) {
-      toast.error(res.error || 'Error al eliminar chat')
-      // If error, we might want to revert, but revalidation will fix it soon
-    } else {
-      toast.success('Chat eliminado')
-    }
+    if (!res.success) toast.error(res.error || 'Error al eliminar chat')
+    else toast.success('Chat eliminado')
   }
+
+  const isAdmin = currentUser.role === 'admin'
+
+  // Filter logic
+  const myConversations = conversations.filter(c => c.assigned_to === currentUser.id)
+  
+  const inboxConversations = conversations.filter(c => {
+    const isAi = c.is_ai_active === true || c.status === 'ai'
+    if (isAi) return false
+    if (c.assigned_to && c.assigned_to !== currentUser.id) return false
+    if (c.assigned_to === currentUser.id) return false // It's in 'mine'
+    if (c.status === 'closed') return false
+    
+    // Department check
+    if (isAdmin) return true
+    if (!c.department_id) return true
+    return c.department_id === currentUser.departmentId
+  })
+
+  const aiConversations = conversations.filter(c => c.is_ai_active === true || c.status === 'ai')
+
+  const getFilteredConversations = () => {
+    if (activeTab === 'mine') return myConversations
+    if (activeTab === 'inbox') return inboxConversations
+    if (activeTab === 'ai') return aiConversations
+    return []
+  }
+
+  const filteredList = getFilteredConversations()
+  const activeConversation = conversations.find(c => c.id === activeId)
+
+  // Auto select first on tab change
+  useEffect(() => {
+    if (filteredList.length > 0 && !filteredList.find(c => c.id === activeId)) {
+      setActiveId(filteredList[0].id)
+    } else if (filteredList.length === 0) {
+      setActiveId(null)
+    }
+  }, [activeTab]) // Intentionally not including filteredList to avoid changing activeId on every new message
 
   return (
     <div className="flex w-full h-full">
       {/* Sidebar - Lista de Conversaciones */}
       <div className={`w-full md:w-80 lg:w-96 flex-shrink-0 border-r bg-white dark:bg-background ${activeId ? 'hidden md:flex flex-col' : 'flex flex-col'}`}>
-        <div className="p-4 border-b h-16 flex items-center justify-between shadow-sm z-10">
-          <h2 className="font-semibold text-lg">Chats</h2>
+        <div className="p-4 border-b h-[68px] flex flex-col justify-center shadow-sm z-10">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3 h-9">
+              <TabsTrigger value="mine" className="text-xs">Mis Chats</TabsTrigger>
+              <TabsTrigger value="inbox" className="text-xs">
+                Bandeja {inboxConversations.length > 0 && `(${inboxConversations.length})`}
+              </TabsTrigger>
+              <TabsTrigger value="ai" className="text-xs">Chats IA</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         <div className="flex-1 overflow-hidden">
           <ConversationList 
-            conversations={conversations} 
+            conversations={filteredList} 
             activeId={activeId} 
             onSelect={setActiveId} 
             onDelete={handleDelete}

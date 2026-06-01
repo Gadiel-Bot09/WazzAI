@@ -4,14 +4,17 @@ import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
+import { toast } from 'sonner'
+
 interface RealtimeListenerProps {
   orgId: string
+  currentUser?: any
 }
 
 // Custom event dispatched when a new message arrives — ChatWindow listens to this
 export const REALTIME_NEW_MESSAGE_EVENT = 'wazzai:new_message'
 
-export function RealtimeListener({ orgId }: RealtimeListenerProps) {
+export function RealtimeListener({ orgId, currentUser }: RealtimeListenerProps) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -45,12 +48,10 @@ export function RealtimeListener({ orgId }: RealtimeListenerProps) {
 
           // Browser Notification for new incoming messages from contacts
           if (newMsg?.sender_type === 'contact' && 'Notification' in window && Notification.permission === 'granted') {
-            // Only show if the page is hidden or user is not looking at it, or maybe always show if it's not the active chat?
-            // Since we don't have active chat ID here easily, we can check document visibility.
             if (document.hidden) {
               const notif = new Notification('Nuevo mensaje en WazzAI', {
                 body: newMsg.content || 'Mensaje multimedia',
-                icon: '/icon-192x192.png' // Or whatever icon
+                icon: '/icon-192x192.png'
               })
               notif.onclick = () => {
                 window.focus()
@@ -59,7 +60,7 @@ export function RealtimeListener({ orgId }: RealtimeListenerProps) {
             }
           }
 
-          // Also refresh server components (conversation list timestamps/previews)
+          // Also refresh server components
           router.refresh()
         }
       )
@@ -70,7 +71,36 @@ export function RealtimeListener({ orgId }: RealtimeListenerProps) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversations', filter: `org_id=eq.${orgId}` },
-        () => { router.refresh() }
+        (payload) => {
+          if (payload.eventType === 'UPDATE') {
+            const newConv = payload.new as any
+            const oldConv = payload.old as any
+          
+          // Check for handoff to human
+          if (newConv.status === 'pending' && oldConv.status !== 'pending' && currentUser) {
+            const isForMe = currentUser.role === 'admin' || !newConv.department_id || newConv.department_id === currentUser.department_id
+            if (isForMe) {
+              toast.info('Un bot ha transferido un chat para atención humana', {
+                description: 'Revisa tu Bandeja de Entrada',
+                duration: 8000,
+              })
+              
+              if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+                const notif = new Notification('Chat transferido a humano', {
+                  body: 'Un bot ha transferido un chat que requiere tu atención.',
+                  icon: '/icon-192x192.png'
+                })
+                notif.onclick = () => {
+                  window.focus()
+                  notif.close()
+                }
+              }
+            }
+          }
+          }
+          
+          router.refresh()
+        }
       )
       .subscribe()
 
