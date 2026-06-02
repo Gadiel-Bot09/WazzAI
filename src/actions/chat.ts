@@ -6,7 +6,7 @@ import type { ActionResult } from '@/lib/utils/server'
 import { evolutionClient } from '@/lib/evolution/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export async function getConversationsAction(): Promise<ActionResult<{ conversations: any[]; showAssignedAgent: boolean; currentUser: { id: string; departmentId: string | null; role: string } }>> {
+export async function getConversationsAction(): Promise<ActionResult<{ conversations: any[]; showAssignedAgent: boolean; currentUser: { id: string; departmentId: string | null; role: string; permissions: any } }>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return err('No autorizado')
@@ -20,8 +20,8 @@ export async function getConversationsAction(): Promise<ActionResult<{ conversat
   const meta = (orgData?.metadata as any) || {}
   const showAssignedAgent = !!meta.show_assigned_agent
 
-  // Get user's team member data to know their department
-  const { data: teamData } = await supabase.from('team_members').select('*').eq('user_id', user.id).eq('org_id', profile.org_id).maybeSingle()
+  // Get user's team member data to know their department and permissions
+  const { data: teamData } = await supabase.from('team_members').select('*, roles(name, permissions)').eq('user_id', user.id).eq('org_id', profile.org_id).maybeSingle()
   const teamMember = teamData as any
 
   const { data: conversations, error } = await supabase
@@ -46,7 +46,7 @@ export async function getConversationsAction(): Promise<ActionResult<{ conversat
     return err('Error al obtener conversaciones')
   }
 
-  return ok({ conversations, showAssignedAgent, currentUser: { id: user.id, departmentId: teamMember?.department_id, role: teamMember?.role || 'admin' } })
+  return ok({ conversations, showAssignedAgent, currentUser: { id: user.id, departmentId: teamMember?.department_id, role: teamMember?.roles?.name || 'agent', permissions: teamMember?.roles?.permissions || {} } })
 }
 
 export async function getMessagesAction(conversationId: string): Promise<ActionResult<any[]>> {

@@ -7,16 +7,17 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { UserPlus, Trash, User } from 'lucide-react'
-import { getTeamMembersAction, inviteTeamMemberAction, removeTeamMemberAction, updateTeamMemberAction, getDepartmentsAction } from '@/actions/team-actions'
+import { UserPlus, Trash, Users } from 'lucide-react'
+import { getTeamMembersAction, inviteTeamMemberAction, removeTeamMemberAction, updateTeamMemberAction } from '@/actions/team-actions'
+import { getRolesAction } from '@/actions/role-actions'
 
-export default function TeamPage() {
+export default function UsersPage() {
   const [members, setMembers] = useState<any[]>([])
-  const [departments, setDepartments] = useState<any[]>([])
+  const [roles, setRoles] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
-  const [inviteData, setInviteData] = useState({ email: '', role: 'agent', departmentId: 'none' })
+  const [inviteData, setInviteData] = useState({ email: '', roleId: '' })
   
   useEffect(() => {
     fetchData()
@@ -24,31 +25,37 @@ export default function TeamPage() {
 
   const fetchData = async () => {
     setIsLoading(true)
-    const [teamRes, deptsRes] = await Promise.all([
+    const [teamRes, rolesRes] = await Promise.all([
       getTeamMembersAction(),
-      getDepartmentsAction()
+      getRolesAction()
     ])
     
     if (teamRes.success) setMembers(teamRes.data)
-    else toast.error('Error al cargar equipo', { description: teamRes.error })
+    else toast.error('Error al cargar usuarios', { description: teamRes.error })
 
-    if (deptsRes.success) setDepartments(deptsRes.data)
-    else toast.error('Error al cargar departamentos', { description: deptsRes.error })
+    if (rolesRes.success) {
+      setRoles(rolesRes.data)
+      if (rolesRes.data.length > 0 && !inviteData.roleId) {
+        setInviteData(prev => ({ ...prev, roleId: rolesRes.data[0].id }))
+      }
+    } else {
+      toast.error('Error al cargar roles', { description: rolesRes.error })
+    }
     
     setIsLoading(false)
   }
 
   const handleInvite = async () => {
     if (!inviteData.email.trim()) return toast.error('El correo es obligatorio')
+    if (!inviteData.roleId) return toast.error('Debe seleccionar un rol')
     
     const res = await inviteTeamMemberAction(
       inviteData.email,
-      inviteData.role,
-      inviteData.departmentId === 'none' ? undefined : inviteData.departmentId
+      inviteData.roleId
     )
 
     if (res.success) {
-      toast.success('Miembro invitado exitosamente')
+      toast.success('Usuario invitado exitosamente')
       setIsInviteModalOpen(false)
       fetchData()
     } else {
@@ -57,26 +64,24 @@ export default function TeamPage() {
   }
 
   const handleRemove = async (id: string) => {
-    if (!confirm('¿Seguro que deseas eliminar a este miembro del equipo?')) return
+    if (!confirm('¿Seguro que deseas eliminar a este usuario de la organización?')) return
     const res = await removeTeamMemberAction(id)
     if (res.success) {
-      toast.success('Miembro eliminado')
+      toast.success('Usuario eliminado')
       fetchData()
     } else {
       toast.error('Error al eliminar', { description: res.error })
     }
   }
 
-  const handleRoleChange = async (id: string, newRole: string) => {
-    const res = await updateTeamMemberAction(id, { role: newRole })
-    if (res.success) fetchData()
-    else toast.error('Error al cambiar rol', { description: res.error })
-  }
-
-  const handleDepartmentChange = async (id: string, newDeptId: string) => {
-    const res = await updateTeamMemberAction(id, { department_id: newDeptId === 'none' ? undefined : newDeptId })
-    if (res.success) fetchData()
-    else toast.error('Error al cambiar departamento', { description: res.error })
+  const handleRoleChange = async (id: string, newRoleId: string) => {
+    const res = await updateTeamMemberAction(id, { role_id: newRoleId })
+    if (res.success) {
+      toast.success('Rol actualizado')
+      fetchData()
+    } else {
+      toast.error('Error al cambiar rol', { description: res.error })
+    }
   }
 
   return (
@@ -84,14 +89,14 @@ export default function TeamPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <User className="w-6 h-6 text-primary" />
-            Equipo
+            <Users className="w-6 h-6 text-primary" />
+            Usuarios
           </h1>
-          <p className="text-muted-foreground mt-1">Gestiona los agentes y administradores de tu organización.</p>
+          <p className="text-muted-foreground mt-1">Gestiona los usuarios de tu organización y sus roles de acceso.</p>
         </div>
         <Button onClick={() => setIsInviteModalOpen(true)}>
           <UserPlus className="w-4 h-4 mr-2" />
-          Invitar Miembro
+          Añadir Usuario
         </Button>
       </div>
 
@@ -102,7 +107,7 @@ export default function TeamPage() {
               <th className="px-4 py-3">Nombre</th>
               <th className="px-4 py-3">Correo</th>
               <th className="px-4 py-3">Rol</th>
-              <th className="px-4 py-3">Departamento</th>
+              <th className="px-4 py-3">Departamento Asignado</th>
               <th className="px-4 py-3 text-right">Acciones</th>
             </tr>
           </thead>
@@ -113,36 +118,27 @@ export default function TeamPage() {
               </tr>
             ) : members.length === 0 ? (
               <tr>
-                <td colSpan={5} className="h-24 text-center text-muted-foreground">No hay miembros en el equipo.</td>
+                <td colSpan={5} className="h-24 text-center text-muted-foreground">No hay usuarios en la organización.</td>
               </tr>
             ) : (
               members.map((m) => (
                 <tr key={m.id} className="hover:bg-muted/50">
-                  <td className="px-4 py-3 font-medium">{m.users?.full_name || 'Sin nombre'}</td>
+                  <td className="px-4 py-3 font-medium">{m.users?.full_name || 'Invitado (Pendiente)'}</td>
                   <td className="px-4 py-3 text-muted-foreground">{m.users?.email}</td>
                   <td className="px-4 py-3">
-                    <Select value={m.role} onValueChange={v => handleRoleChange(m.id, v)}>
-                      <SelectTrigger className="w-[120px] h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="agent">Agente</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Select value={m.department_id || 'none'} onValueChange={v => handleDepartmentChange(m.id, v)}>
+                    <Select value={m.role_id || ''} onValueChange={v => handleRoleChange(m.id, v)}>
                       <SelectTrigger className="w-[180px] h-8 text-xs">
-                        <SelectValue placeholder="Sin asignar" />
+                        <SelectValue placeholder="Seleccionar Rol" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Sin asignar</SelectItem>
-                        {departments.map(d => (
-                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                        {roles.map(r => (
+                          <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {m.departments?.name || 'Sin asignar'}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleRemove(m.id)}>
@@ -159,7 +155,7 @@ export default function TeamPage() {
       <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Invitar al equipo</DialogTitle>
+            <DialogTitle>Añadir Usuario a la Organización</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -170,40 +166,29 @@ export default function TeamPage() {
                 onChange={e => setInviteData({ ...inviteData, email: e.target.value })} 
                 placeholder="ejemplo@correo.com"
               />
-              <p className="text-xs text-muted-foreground">El usuario ya debe haber iniciado sesión al menos una vez en la app.</p>
+              <p className="text-xs text-muted-foreground">El usuario debe haber creado su cuenta o recibir la invitación por correo.</p>
             </div>
             
             <div className="space-y-2">
-              <Label>Rol</Label>
-              <Select value={inviteData.role} onValueChange={v => setInviteData({ ...inviteData, role: v })}>
+              <Label>Rol de Acceso</Label>
+              <Select value={inviteData.roleId} onValueChange={v => setInviteData({ ...inviteData, roleId: v })}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Seleccione un Rol" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="agent">Agente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Departamento</Label>
-              <Select value={inviteData.departmentId} onValueChange={v => setInviteData({ ...inviteData, departmentId: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sin departamento" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Ninguno</SelectItem>
-                  {departments.map(d => (
-                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  {roles.map(r => (
+                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            <p className="text-xs text-muted-foreground mt-4">
+              Nota: Para asignar este usuario a un departamento específico, ve a la sección de Departamentos.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsInviteModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleInvite}>Invitar</Button>
+            <Button onClick={handleInvite}>Invitar Usuario</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

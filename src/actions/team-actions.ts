@@ -113,7 +113,8 @@ export async function getTeamMembersAction() {
       .select(`
         *,
         users (id, full_name, email, avatar_url),
-        departments (id, name)
+        departments (id, name),
+        roles (id, name)
       `)
       .eq('org_id', orgId)
       .order('created_at', { ascending: false })
@@ -125,7 +126,7 @@ export async function getTeamMembersAction() {
   }
 }
 
-export async function updateTeamMemberAction(id: string, payload: { role?: string, department_id?: string | null }) {
+export async function updateTeamMemberAction(id: string, payload: { role_id?: string }) {
   try {
     const orgId = await getCurrentOrg()
     const admin = createAdminClient() as any
@@ -164,7 +165,7 @@ export async function removeTeamMemberAction(id: string) {
 
 // Invite is more complex: typically involves auth.admin.inviteUserByEmail 
 // and then creating a team_member record. For now we will just create a placeholder action
-export async function inviteTeamMemberAction(email: string, role: string, department_id?: string) {
+export async function inviteTeamMemberAction(email: string, role_id: string) {
   try {
     const orgId = await getCurrentOrg()
     const admin = createAdminClient() as any
@@ -190,10 +191,7 @@ export async function inviteTeamMemberAction(email: string, role: string, depart
       if (authErr) return err(authErr.message)
       userId = authData.user.id
       
-      // Wait briefly for trigger to create user (if you have one), otherwise we might need to insert it manually
-      // Assuming you have a trigger, or we just insert it. Let's insert a placeholder if no trigger exists.
       const { error: userErr } = await admin.from('users').insert({ id: userId, email, full_name: 'Invitado' }).select().maybeSingle()
-      // Ignore error if it violates unique constraint because trigger already created it
     }
 
     // 3. Add to team_members
@@ -202,13 +200,31 @@ export async function inviteTeamMemberAction(email: string, role: string, depart
       .insert({
         org_id: orgId,
         user_id: userId,
-        role: role,
-        department_id: department_id || null
+        role_id: role_id
       })
 
     if (teamErr) return err('El usuario ya pertenece al equipo o hubo un error al añadirlo: ' + teamErr.message)
     
     return ok(true)
+  } catch (e: any) {
+    return err(e.message)
+  }
+}
+
+export async function assignUserToDepartmentAction(userId: string, departmentId: string | null) {
+  try {
+    const orgId = await getCurrentOrg()
+    const admin = createAdminClient() as any
+    const { data, error } = await admin
+      .from('team_members')
+      .update({ department_id: departmentId })
+      .eq('user_id', userId)
+      .eq('org_id', orgId)
+      .select('*')
+      .single()
+
+    if (error) return err(error.message)
+    return ok(data)
   } catch (e: any) {
     return err(e.message)
   }
