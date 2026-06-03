@@ -9,7 +9,7 @@ import { Send, Loader2, Phone, Image as ImageIcon, Bot, Lock, Smile, Paperclip, 
 import { getMessagesAction, sendChatMessageAction } from '@/actions/chat'
 import { toggleConversationAIAction } from '@/actions/ai'
 import { Switch } from '@/components/ui/switch'
-import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react'
+import { NativeEmojiPicker } from './native-emoji-picker'
 import {
   Tooltip,
   TooltipContent,
@@ -119,36 +119,27 @@ export function ChatWindow({
 
     if (fileToSend) {
       toast.loading('Subiendo archivo...', { id: 'upload' })
-      const { getPresignedUploadUrlAction } = await import('@/actions/storage-actions')
-      const presignedRes = await getPresignedUploadUrlAction(fileToSend.name, fileToSend.type)
-      
-      if (presignedRes.success && presignedRes.presignedUrl) {
-        try {
-          const uploadRes = await fetch(presignedRes.presignedUrl, {
-            method: 'PUT',
-            body: fileToSend,
-            headers: {
-              'Content-Type': fileToSend.type
-            }
-          })
-          if (uploadRes.ok) {
-            mediaUrl = presignedRes.publicUrl
-            mediaType = fileToSend.type
-            toast.success('Archivo subido', { id: 'upload' })
-          } else {
-            toast.error('Error subiendo al servidor', { id: 'upload' })
-            setSending(false)
-            return
-          }
-        } catch(err) {
-          toast.error('Error de red al subir', { id: 'upload' })
+      try {
+        const form = new FormData()
+        form.append('file', fileToSend)
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: form,
+        })
+        const uploadData = await uploadRes.json()
+        if (uploadRes.ok && uploadData.url) {
+          mediaUrl = uploadData.url
+          mediaType = fileToSend.type
+          toast.success('Archivo subido correctamente', { id: 'upload' })
+        } else {
+          toast.error(uploadData.error || 'Error al subir el archivo', { id: 'upload' })
           setSending(false)
           return
         }
-      } else {
-         toast.error(presignedRes.error || 'Error al obtener URL de subida. Revisa variables de MinIO', { id: 'upload' })
-         setSending(false)
-         return
+      } catch (err) {
+        toast.error('Error de red al subir el archivo', { id: 'upload' })
+        setSending(false)
+        return
       }
     }
 
@@ -179,8 +170,9 @@ export function ChatWindow({
 
   const isClosed = convStatus === 'closed'
 
-  const onEmojiClick = (emojiData: EmojiClickData) => {
-    setInputText((prev) => prev + emojiData.emoji)
+  const onEmojiClick = (emoji: string) => {
+    setInputText((prev) => prev + emoji)
+    setShowEmojiPicker(false)
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -355,7 +347,7 @@ export function ChatWindow({
             {/* Emoji Picker */}
             {showEmojiPicker && (
               <div className="absolute bottom-full mb-2 left-0 z-50 animate-in fade-in slide-in-from-bottom-2">
-                <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} />
+                <NativeEmojiPicker onEmojiClick={onEmojiClick} onClose={() => setShowEmojiPicker(false)} />
               </div>
             )}
 
