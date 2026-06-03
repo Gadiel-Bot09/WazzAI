@@ -19,6 +19,7 @@ import {
   Workflow,
   Building,
 } from 'lucide-react'
+import { Logo } from '@/components/layout/logo'
 
 const navItems = [
   {
@@ -106,12 +107,10 @@ export function Sidebar({ isPlatformAdmin = false }: { isPlatformAdmin?: boolean
   return (
     <aside className="w-64 border-r bg-background h-screen flex flex-col hidden md:flex shadow-sm">
       {/* Logo */}
-      <div className="h-14 flex items-center border-b px-5">
-        <Link href="/dashboard" className="flex items-center gap-2.5 font-bold text-lg">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <Bot className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <span className="bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
+      <div className="h-16 flex items-center border-b px-5 hover:bg-muted/30 transition-colors">
+        <Link href="/dashboard" className="flex items-center gap-3 font-bold text-xl">
+          <Logo />
+          <span className="text-foreground tracking-tight">
             WazzAI
           </span>
         </Link>

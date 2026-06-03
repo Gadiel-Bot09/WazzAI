@@ -5,10 +5,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageBubble } from './message-bubble'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Send, Loader2, Phone, Image as ImageIcon, Bot, Lock } from 'lucide-react'
+import { Send, Loader2, Phone, Image as ImageIcon, Bot, Lock, Smile, Paperclip, X } from 'lucide-react'
 import { getMessagesAction, sendChatMessageAction } from '@/actions/chat'
 import { toggleConversationAIAction } from '@/actions/ai'
 import { Switch } from '@/components/ui/switch'
+import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react'
 import {
   Tooltip,
   TooltipContent,
@@ -48,6 +49,9 @@ export function ChatWindow({
   const [togglingAI, setTogglingAI] = useState(false)
   const [convStatus, setConvStatus] = useState<'open' | 'closed' | 'pending'>(initialStatus)
   const [showCannedPicker, setShowCannedPicker] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -100,12 +104,53 @@ export function ChatWindow({
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!inputText.trim() || sending || convStatus === 'closed') return
+    if ((!inputText.trim() && !file) || sending || convStatus === 'closed') return
 
     const textToSend = inputText.trim()
+    const fileToSend = file
     setInputText('')
     setShowCannedPicker(false)
+    setShowEmojiPicker(false)
+    setFile(null)
     setSending(true)
+
+    let mediaUrl: string | undefined
+    let mediaType: string | undefined
+
+    if (fileToSend) {
+      toast.loading('Subiendo archivo...', { id: 'upload' })
+      const { getPresignedUploadUrlAction } = await import('@/actions/storage-actions')
+      const presignedRes = await getPresignedUploadUrlAction(fileToSend.name, fileToSend.type)
+      
+      if (presignedRes.success && presignedRes.presignedUrl) {
+        try {
+          const uploadRes = await fetch(presignedRes.presignedUrl, {
+            method: 'PUT',
+            body: fileToSend,
+            headers: {
+              'Content-Type': fileToSend.type
+            }
+          })
+          if (uploadRes.ok) {
+            mediaUrl = presignedRes.publicUrl
+            mediaType = fileToSend.type
+            toast.success('Archivo subido', { id: 'upload' })
+          } else {
+            toast.error('Error subiendo al servidor', { id: 'upload' })
+            setSending(false)
+            return
+          }
+        } catch(err) {
+          toast.error('Error de red al subir', { id: 'upload' })
+          setSending(false)
+          return
+        }
+      } else {
+         toast.error(presignedRes.error || 'Error al obtener URL de subida. Revisa variables de MinIO', { id: 'upload' })
+         setSending(false)
+         return
+      }
+    }
 
     // Optimistic message
     const tempId = `temp-${Date.now()}`
@@ -114,14 +159,17 @@ export function ChatWindow({
       content: textToSend,
       direction: 'outbound',
       status: 'sending',
-      sent_at: new Date().toISOString()
+      sent_at: new Date().toISOString(),
+      media_url: mediaUrl,
+      media_type: mediaType
     }])
     scrollToBottom()
 
-    const res = await sendChatMessageAction(conversationId, textToSend)
+    const res = await sendChatMessageAction(conversationId, textToSend, mediaUrl, mediaType)
 
     if (!res.success) {
       console.error(res.error)
+      toast.error(res.error)
     } else {
       await fetchMessages()
     }
@@ -131,8 +179,18 @@ export function ChatWindow({
 
   const isClosed = convStatus === 'closed'
 
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    setInputText((prev) => prev + emojiData.emoji)
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0])
+    }
+  }
+
   return (
-    <div className="flex flex-col h-full bg-[#f0f2f5] dark:bg-background relative">
+    <div className="flex flex-col h-full bg-[#EFEAE2] dark:bg-[#0b141a] relative wa-bg">
       {/* Header */}
       <div className="h-16 border-b flex items-center justify-between px-6 bg-white dark:bg-muted/30 shadow-sm z-10">
         <div className="flex items-center gap-3">
@@ -216,7 +274,7 @@ export function ChatWindow({
       )}
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50/50 dark:bg-background/50">
+      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {loading ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -273,42 +331,82 @@ export function ChatWindow({
             </Button>
           </div>
         ) : (
-          <form onSubmit={handleSend} className="flex items-end gap-2">
-            <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground">
-              <ImageIcon className="w-5 h-5" />
-            </Button>
-            <div className="flex-1 relative">
-              {showCannedPicker && (
-                <CannedMessagePicker
-                  query={inputText}
-                  onSelect={text => {
-                    setInputText(text)
-                    setShowCannedPicker(false)
+          <div className="flex flex-col w-full relative">
+            {/* File preview */}
+            {file && (
+              <div className="absolute bottom-full mb-2 left-0 bg-white dark:bg-muted p-2 rounded-lg shadow-md border flex items-center gap-3 w-64 animate-in fade-in slide-in-from-bottom-2">
+                <div className="w-10 h-10 bg-primary/10 rounded flex items-center justify-center shrink-0">
+                  {file.type.startsWith('image/') ? (
+                    <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover rounded" />
+                  ) : (
+                    <Paperclip className="w-5 h-5 text-primary" />
+                  )}
+                </div>
+                <div className="flex-1 truncate text-sm">
+                  <p className="truncate font-medium">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                </div>
+                <button type="button" onClick={() => setFile(null)} className="p-1 text-muted-foreground hover:text-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+            
+            {/* Emoji Picker */}
+            {showEmojiPicker && (
+              <div className="absolute bottom-full mb-2 left-0 z-50 animate-in fade-in slide-in-from-bottom-2">
+                <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} />
+              </div>
+            )}
+
+            <form onSubmit={handleSend} className="flex items-end gap-2 w-full">
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+              <div className="flex items-center gap-1 shrink-0 text-muted-foreground">
+                <Button type="button" variant="ghost" size="icon" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="rounded-full hover:bg-black/5 dark:hover:bg-white/5">
+                  <Smile className="w-6 h-6" />
+                </Button>
+                <Button type="button" variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="rounded-full hover:bg-black/5 dark:hover:bg-white/5">
+                  <Paperclip className="w-5 h-5" />
+                </Button>
+              </div>
+
+              <div className="flex-1 relative bg-white dark:bg-[#2a3942] rounded-3xl flex items-center border border-border/50 shadow-sm overflow-visible px-4 py-2">
+                {showCannedPicker && (
+                  <div className="absolute bottom-full left-0 w-full mb-2 z-50">
+                    <CannedMessagePicker
+                      query={inputText}
+                      onSelect={text => {
+                        setInputText(text)
+                        setShowCannedPicker(false)
+                      }}
+                      onClose={() => setShowCannedPicker(false)}
+                    />
+                  </div>
+                )}
+                <Input
+                  value={inputText}
+                  onChange={handleInputChange}
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') {
+                      setShowCannedPicker(false)
+                      setShowEmojiPicker(false)
+                    }
                   }}
-                  onClose={() => setShowCannedPicker(false)}
+                  placeholder="Escribe un mensaje… (/ para predefinidos)"
+                  className="w-full bg-transparent border-0 focus-visible:ring-0 shadow-none px-0 py-0 h-8 text-[15px]"
                 />
-              )}
-              <Input
-                value={inputText}
-                onChange={handleInputChange}
-                onKeyDown={e => {
-                  if (e.key === 'Escape' && showCannedPicker) {
-                    setShowCannedPicker(false)
-                  }
-                }}
-                placeholder="Escribe un mensaje… o escribe / para mensajes predefinidos"
-                className="w-full bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary/30 shadow-none px-4 py-6 rounded-xl"
-                autoComplete="off"
-              />
-            </div>
-            <Button
-              type="submit"
-              disabled={!inputText.trim() || sending}
-              className="shrink-0 h-12 w-12 rounded-xl"
-            >
-              {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-            </Button>
-          </form>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={sending || (!inputText.trim() && !file)}
+                size="icon"
+                className="shrink-0 rounded-full w-12 h-12 bg-primary hover:bg-primary/90 text-white shadow-sm flex items-center justify-center transition-transform active:scale-95"
+              >
+                {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-1" />}
+              </Button>
+            </form>
+          </div>
         )}
       </div>
     </div>

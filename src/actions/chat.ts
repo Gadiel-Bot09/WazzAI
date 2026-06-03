@@ -68,42 +68,53 @@ export async function getMessagesAction(conversationId: string): Promise<ActionR
 
 export async function sendChatMessageAction(
   conversationId: string, 
-  text: string
+  text: string,
+  mediaUrl?: string,
+  mediaType?: string
 ): Promise<ActionResult<void>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return err('No autorizado')
 
-  const { data: profileData } = await supabase.from('users').select('org_id').eq('id', user.id).single()
-  const profile = profileData as any
-  if (!profile?.org_id) return err('Organización no encontrada')
-
-  const { data: convData } = await supabase
+  // Validar conv
+  const { data: convData, error: convErr } = await supabase
     .from('conversations')
-    .select('contact_id, instance_id')
+    .select('contact_id, status, instance_id')
     .eq('id', conversationId)
     .single()
-  
+
   const conv = convData as any
 
-  if (!conv) return err('Conversación no encontrada')
+  if (convErr || !conv) return err('Conversación no encontrada')
+  if (conv.status === 'closed') return err('La conversación está cerrada')
 
+  const { data: profile } = await supabase.from('users').select('org_id').eq('id', user.id).single()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!(profile as any)?.org_id) return err('Organización no encontrada')
+
+  // Obtener contacto
   const { data: contactData } = await supabase
     .from('contacts')
     .select('phone_number')
     .eq('id', conv.contact_id)
     .single()
-    
+
   const contact = contactData as any
 
-  if (!contact?.phone_number) return err('Contacto no tiene número de teléfono')
+  if (!contact) return err('Contacto no encontrado')
 
   try {
     // 1. Send via Evolution API
-    // En el futuro, idealmente usaríamos el instance_id para sacar el nombre de la instancia.
-    // Por ahora, como es single-tenant per org en la prueba, usamos
-    const finalInstanceId = conv.instance_id || profile.org_id;
-    await evolutionClient.sendTextMessage(finalInstanceId, contact.phone_number, text)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const finalInstanceId = conv.instance_id || (profile as any).org_id;
+    if (mediaUrl) {
+      // Si tenemos función sendMediaMessage en el futuro
+      // await evolutionClient.sendMediaMessage(finalInstanceId, contact.phone_number, mediaUrl, mediaType, text)
+      // Por ahora enviamos texto indicando que hay adjunto o si la librería lo permite enviamos texto normal
+      await evolutionClient.sendTextMessage(finalInstanceId, contact.phone_number, text || 'Archivo adjunto')
+    } else {
+      await evolutionClient.sendTextMessage(finalInstanceId, contact.phone_number, text)
+    }
 
     // 2. Guardar el mensaje en Supabase
     const admin = createAdminClient()
@@ -111,19 +122,21 @@ export async function sendChatMessageAction(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any).from('messages').insert({
       conversation_id: conversationId,
-      org_id: profile.org_id,
+      org_id: (profile as any).org_id,
       sender_id: user.id,
       direction: 'outbound',
       content: text,
       status: 'sent',
-      message_type: 'text'
+      message_type: mediaUrl ? 'media' : 'text',
+      media_url: mediaUrl || null,
+      media_type: mediaType || null
     })
 
     // 3. Actualizar conversación
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any).from('conversations').update({
       last_message_at: new Date().toISOString(),
-      last_message_preview: text.substring(0, 50)
+      last_message_preview: mediaUrl ? '📷 Archivo adjunto' : text.substring(0, 50)
     }).eq('id', conversationId)
 
     return ok(undefined)
