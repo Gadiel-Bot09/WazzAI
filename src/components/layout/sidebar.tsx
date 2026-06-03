@@ -75,9 +75,14 @@ const bottomItems = [
     icon: Building,
   },
   {
-    label: 'Equipos',
+    label: 'Usuarios',
     href: '/dashboard/settings/team',
     icon: Users,
+  },
+  {
+    label: 'Roles y Permisos',
+    href: '/dashboard/settings/roles',
+    icon: ShieldAlert,
   },
   {
     label: 'Mensajes predefinidos',
