@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -10,14 +10,33 @@ import { toast } from 'sonner'
 import { Plus, Trash, Edit, ShieldAlert } from 'lucide-react'
 import { getRolesAction, createRoleAction, updateRoleAction, deleteRoleAction } from '@/actions/role-actions'
 
-const AVAILABLE_PERMISSIONS = [
-  { id: 'can_view_all_chats', label: 'Ver todos los chats de la organización' },
-  { id: 'can_manage_team', label: 'Gestionar Usuarios y Roles' },
-  { id: 'can_manage_departments', label: 'Gestionar Departamentos' },
-  { id: 'can_manage_automations', label: 'Gestionar Automatizaciones (Flujos)' },
-  { id: 'can_view_analytics', label: 'Ver Analíticas y Reportes' },
-  { id: 'can_manage_settings', label: 'Acceder a Configuración y Facturación' },
-  { id: 'can_manage_contacts', label: 'Gestionar Contactos' },
+const PERMISSION_GROUPS = [
+  {
+    category: 'Chat en Vivo',
+    permissions: [
+      { id: 'can_reply_chat', label: 'Responder chats (Chat en vivo)' },
+      { id: 'can_close_chat', label: 'Cerrar chats' },
+      { id: 'can_reopen_chat', label: 'Reabrir chats' },
+      { id: 'can_transfer_chat', label: 'Transferir chat a otro agente' },
+      { id: 'can_view_all_chats', label: 'Ver todos los chats de la organización (no solo los propios)' },
+    ]
+  },
+  {
+    category: 'Contactos y Analíticas',
+    permissions: [
+      { id: 'can_manage_contacts', label: 'Gestionar Contactos' },
+      { id: 'can_view_analytics', label: 'Ver Analíticas y Reportes' },
+    ]
+  },
+  {
+    category: 'Configuración y Equipo',
+    permissions: [
+      { id: 'can_manage_team', label: 'Gestionar Usuarios y Roles' },
+      { id: 'can_manage_departments', label: 'Gestionar Departamentos' },
+      { id: 'can_manage_automations', label: 'Gestionar Automatizaciones (Flujos)' },
+      { id: 'can_manage_settings', label: 'Acceder a Configuración y Facturación' },
+    ]
+  }
 ]
 
 export default function RolesPage() {
@@ -157,9 +176,10 @@ export default function RolesPage() {
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingRole ? 'Editar Rol' : 'Nuevo Rol'}</DialogTitle>
+            <DialogDescription>Configura los permisos detallados para este perfil.</DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-4">
             <div className="space-y-2">
@@ -171,27 +191,31 @@ export default function RolesPage() {
               />
             </div>
             
-            <div className="space-y-3">
+            <div className="space-y-4">
               <Label className="text-sm font-semibold">Permisos del Sistema</Label>
-              <p className="text-xs text-muted-foreground mb-2">Selecciona a qué secciones y acciones tendrá acceso este rol.</p>
               
-              <div className="space-y-2.5 border rounded-md p-4 bg-muted/30">
-                {AVAILABLE_PERMISSIONS.map(perm => (
-                  <div key={perm.id} className="flex items-center space-x-2">
-                    <Checkbox 
-                      id={perm.id} 
-                      checked={!!formData.permissions[perm.id]}
-                      onCheckedChange={(checked) => handleTogglePermission(perm.id, checked as boolean)}
-                    />
-                    <label 
-                      htmlFor={perm.id} 
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {perm.label}
-                    </label>
+              {PERMISSION_GROUPS.map((group, idx) => (
+                <div key={idx} className="space-y-3 border rounded-md p-4 bg-muted/30">
+                  <h3 className="font-medium text-sm text-primary">{group.category}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {group.permissions.map(perm => (
+                      <div key={perm.id} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={perm.id} 
+                          checked={!!formData.permissions[perm.id]}
+                          onCheckedChange={(checked) => handleTogglePermission(perm.id, checked as boolean)}
+                        />
+                        <label 
+                          htmlFor={perm.id} 
+                          className="text-sm font-medium leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {perm.label}
+                        </label>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
           <DialogFooter>
