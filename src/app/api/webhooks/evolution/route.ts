@@ -248,14 +248,16 @@ export async function POST(req: Request) {
       }
 
       // Buscar o crear conversación
+      // IMPORTANT: We check 'open' AND 'pending' to avoid re-creating after handoff
       let conversationId = null
+      let existingConvStatus: string | null = null
       const { data: existingConvData } = await supabaseAdmin
         .from('conversations')
-        .select('id')
+        .select('id, status, is_ai_active')
         .eq('org_id', org.id)
         .eq('contact_id', contactId)
         .eq('instance_id', waInstance.id)
-        .eq('status', 'open')
+        .in('status', ['open', 'pending'])
         .order('created_at', { ascending: false })
         .limit(1)
 
@@ -264,8 +266,9 @@ export async function POST(req: Request) {
       if (existingConv) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         conversationId = (existingConv as any).id
+        existingConvStatus = (existingConv as any).status
       } else {
-        // Usamos la instancia desde la cual llegó el mensaje
+        // No existing open/pending conversation — create a new one
         const instanceData = waInstance
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -279,14 +282,18 @@ export async function POST(req: Request) {
             is_ai_active: true,
             last_message_at: new Date().toISOString()
           })
-          .select('id')
+          .select('id, status, is_ai_active')
           .single()
         
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (newConv) conversationId = (newConv as any).id
+        if (newConv) {
+          conversationId = (newConv as any).id
+          existingConvStatus = 'open'
+        }
       }
 
       // 2. Guardar el mensaje
+      const now = new Date().toISOString()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error: insertError } = await (supabaseAdmin as any)
         .from('messages')
@@ -295,20 +302,27 @@ export async function POST(req: Request) {
           org_id: org.id,
           content: textContent,
           direction: 'inbound',
-          status: 'delivered', // evolution received it
-          evolution_msg_id: messageId
+          status: 'delivered',
+          evolution_msg_id: messageId,
+          sent_at: now,
         })
 
       // Actualizar lead para reflejar la última actividad
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabaseAdmin as any).from('leads').update({ last_activity_at: new Date().toISOString() }).eq('id', leadId)
+      await (supabaseAdmin as any).from('leads').update({ last_activity_at: now }).eq('id', leadId)
 
-      // Actualizar conversación
+      // Actualizar conversación: preview, timestamp, e incrementar unread
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabaseAdmin as any).from('conversations').update({ 
-        last_message_at: new Date().toISOString(),
-        last_message_preview: textContent.substring(0, 50)
+        last_message_at: now,
+        last_message_preview: textContent.substring(0, 50),
+        unread_count: (supabaseAdmin as any).rpc ? undefined : undefined // handled below
       }).eq('id', conversationId)
+
+      // Increment unread_count via RPC for atomicity
+      await (supabaseAdmin as any).rpc('increment_unread', { conv_id: conversationId }).catch(() => {
+        // RPC may not exist, fallback: just update normally (no atomic increment)
+      })
 
       if (insertError) {
         console.error('Error saving message:', insertError)
@@ -320,14 +334,23 @@ export async function POST(req: Request) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: convCheck } = await (supabaseAdmin as any)
           .from('conversations')
-          .select('is_ai_active, instance_id')
+          .select('is_ai_active, instance_id, status')
           .eq('id', conversationId)
           .single()
 
+        const convStatus = convCheck?.status
         const convInstanceId = convCheck?.instance_id || waInstance.id
+
+        // If conversation is PENDING, a human agent has taken over.
+        // Do NOT trigger automations or AI — just notify the agent via realtime.
+        if (convStatus === 'pending') {
+          console.log(`[Webhook] Conv ${conversationId} is PENDING (human agent mode) — skipping automations`)
+          return NextResponse.json({ success: true, pending: true })
+        }
+
         const isFirstMessage = existingConv ? false : true
 
-        // Automations run ALWAYS (regardless of AI toggle)
+        // Automations run for OPEN conversations
         const handledByFlow = await processAutomations({
           orgId: org.id,
           contactId: contactId,

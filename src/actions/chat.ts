@@ -105,15 +105,25 @@ export async function sendChatMessageAction(
 
   try {
     // 1. Send via Evolution API
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const finalInstanceId = conv.instance_id || (profile as any).org_id;
-    if (mediaUrl) {
-      // Si tenemos función sendMediaMessage en el futuro
-      // await evolutionClient.sendMediaMessage(finalInstanceId, contact.phone_number, mediaUrl, mediaType, text)
-      // Por ahora enviamos texto indicando que hay adjunto o si la librería lo permite enviamos texto normal
-      await evolutionClient.sendTextMessage(finalInstanceId, contact.phone_number, text || 'Archivo adjunto')
+    if (!conv.instance_id) {
+      console.error('[sendChatMessage] No instance_id on conversation:', conversationId)
+      return err('Esta conversación no tiene una instancia de WhatsApp asignada')
+    }
+
+    const finalInstanceId = conv.instance_id
+    console.log(`[sendChatMessage] Sending via instance ${finalInstanceId} to ${contact.phone_number}`)
+
+    if (mediaUrl && mediaType?.startsWith('image/')) {
+      // Send as image via Evolution sendMedia
+      await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'image', text || undefined)
+    } else if (mediaUrl && mediaType?.startsWith('application/')) {
+      // Send document
+      await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'document', text || undefined)
     } else {
-      await evolutionClient.sendTextMessage(finalInstanceId, contact.phone_number, text)
+      // Send plain text (include a note if there's media we can't type-classify)
+      const sendText = text || (mediaUrl ? '📎 Archivo adjunto' : '')
+      if (!sendText) return err('No hay contenido para enviar')
+      await evolutionClient.sendTextMessage(finalInstanceId, contact.phone_number, sendText)
     }
 
     // 2. Guardar el mensaje en Supabase
