@@ -34,14 +34,14 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
   const isAdmin = currentUser.role === 'admin'
 
   // Filter logic
-  const myConversations = conversations.filter(c => c.assigned_to === currentUser.id)
+  const myConversations = conversations.filter(c => c.assigned_to === currentUser.id && c.status !== 'closed')
   
   const inboxConversations = conversations.filter(c => {
+    if (c.status === 'closed') return false
     const isAi = c.is_ai_active === true || c.status === 'ai'
     if (isAi) return false
     if (c.assigned_to && c.assigned_to !== currentUser.id) return false
     if (c.assigned_to === currentUser.id) return false // It's in 'mine'
-    if (c.status === 'closed') return false
     
     // Department check
     if (isAdmin) return true
@@ -49,12 +49,15 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
     return c.department_id === currentUser.departmentId
   })
 
-  const aiConversations = conversations.filter(c => c.is_ai_active === true || c.status === 'ai')
+  const aiConversations = conversations.filter(c => (c.is_ai_active === true || c.status === 'ai') && c.status !== 'closed')
+
+  const closedConversations = conversations.filter(c => c.status === 'closed')
 
   const getFilteredConversations = () => {
     if (activeTab === 'mine') return myConversations
     if (activeTab === 'inbox') return inboxConversations
     if (activeTab === 'ai') return aiConversations
+    if (activeTab === 'closed') return closedConversations
     return []
   }
 
@@ -76,12 +79,13 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
       <div className={`w-full md:w-80 lg:w-96 flex-shrink-0 border-r bg-white dark:bg-background ${activeId ? 'hidden md:flex flex-col' : 'flex flex-col'}`}>
         <div className="p-4 border-b h-[68px] flex flex-col justify-center shadow-sm z-10">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 h-9">
-              <TabsTrigger value="mine" className="text-xs">Mis Chats</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4 h-9">
+              <TabsTrigger value="mine" className="text-xs">Míos</TabsTrigger>
               <TabsTrigger value="inbox" className="text-xs">
                 Bandeja {inboxConversations.length > 0 && `(${inboxConversations.length})`}
               </TabsTrigger>
-              <TabsTrigger value="ai" className="text-xs">Chats IA</TabsTrigger>
+              <TabsTrigger value="ai" className="text-xs">IA</TabsTrigger>
+              <TabsTrigger value="closed" className="text-xs">Cerrados</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

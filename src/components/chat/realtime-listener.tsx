@@ -76,9 +76,9 @@ export function RealtimeListener({ orgId, currentUser }: RealtimeListenerProps) 
             const newConv = payload.new as any
             const oldConv = payload.old as any
           
-          // Check for handoff to human
+          // Check for handoff to human or assignment
           if (newConv.status === 'pending' && oldConv.status !== 'pending' && currentUser) {
-            const isForMe = currentUser.role === 'admin' || !newConv.department_id || newConv.department_id === currentUser.department_id
+            const isForMe = currentUser.role === 'admin' || !newConv.department_id || newConv.department_id === currentUser.departmentId || newConv.assigned_to === currentUser.id
             if (isForMe) {
               toast.info('Un bot ha transferido un chat para atención humana', {
                 description: 'Revisa tu Bandeja de Entrada',

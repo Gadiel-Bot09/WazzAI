@@ -26,42 +26,9 @@ const FILTERS: { key: Filter; label: string }[] = [
 
 export function ConversationList({ conversations, activeId, onSelect, onDelete, showAssignedAgent, currentUser }: ConversationListProps) {
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<Filter>('inbox')
-
-  const isMatchingFilter = (conv: any, filterType: Filter) => {
-    if (filterType === 'closed') {
-      return conv.status === 'closed'
-    }
-    
-    // For other tabs, don't show closed conversations
-    if (conv.status === 'closed') return false
-
-    if (filterType === 'ai') {
-      return conv.is_ai_active === true
-    }
-
-    // For human tabs (inbox, mine), don't show AI active conversations
-    if (conv.is_ai_active === true) return false
-
-    if (filterType === 'mine') {
-      return conv.assigned_to === currentUser?.id
-    }
-
-    if (filterType === 'inbox') {
-      // Show unassigned conversations, or conversations assigned to my department
-      if (conv.assigned_to && conv.assigned_to !== currentUser?.id) return false // someone else took it
-      if (conv.department_id && conv.department_id !== currentUser?.departmentId) return false // wrong department
-      return true
-    }
-
-    return false
-  }
 
   const filtered = useMemo(() => {
     return conversations.filter((conv) => {
-      // Status/Routing filter
-      if (!isMatchingFilter(conv, filter)) return false
-      
       // Search filter
       if (search.trim()) {
         const q = search.toLowerCase()
@@ -71,7 +38,7 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
       }
       return true
     })
-  }, [conversations, search, filter, currentUser])
+  }, [conversations, search])
 
   return (
     <div className="flex flex-col h-full">
@@ -86,26 +53,6 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
             className="pl-8 h-8 text-sm bg-muted/50 border-transparent focus-visible:ring-1"
           />
         </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex border-b overflow-x-auto shrink-0">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`px-3 py-2 text-xs font-medium whitespace-nowrap flex-shrink-0 border-b-2 transition-colors ${
-              filter === f.key
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {f.label}
-            <span className="ml-1 text-[10px] opacity-60">
-              {conversations.filter(c => isMatchingFilter(c, f.key)).length}
-            </span>
-          </button>
-        ))}
       </div>
 
       {/* List */}
