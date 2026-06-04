@@ -20,107 +20,175 @@ export async function processAutomations({
 }): Promise<boolean> {
   const admin = createAdminClient()
 
-  // 1. Check if user is in an active flow
-  const { data: activeState } = await (admin as any)
+  console.log(`[Automations] Processing: orgId=${orgId}, contactId=${contactId}, instanceId=${instanceId}, isFirst=${isFirstMessage}, text="${textContent}"`)
+
+  // 1. Check if contact is already in an active flow
+  const { data: activeState, error: activeStateError } = await (admin as any)
     .from('flow_states')
     .select('*, flow:automation_flows(*)')
     .eq('org_id', orgId)
     .eq('contact_id', contactId)
     .eq('status', 'active')
-    .single()
+    .maybeSingle()
+
+  if (activeStateError) {
+    console.error('[Automations] Error checking active flow state:', activeStateError)
+  }
 
   if (activeState && activeState.flow) {
-    // Resume flow
+    console.log(`[Automations] Resuming active flow: ${activeState.flow.name}`)
     return await executeFlowStep(activeState, textContent, conversationId, phone, orgId, instanceId)
   }
 
-  // 2. Not in a flow. Check if we should trigger one.
-  const { data: flows } = await (admin as any)
+  // 2. Not in a flow. Try to trigger one.
+  // Fetch all active flows for this org
+  const { data: flows, error: flowsError } = await (admin as any)
     .from('automation_flows')
     .select('*')
     .eq('org_id', orgId)
     .eq('is_active', true)
-    .or(`instance_id.is.null,instance_id.eq.${instanceId}`)
 
-  if (!flows || flows.length === 0) return false
+  if (flowsError) {
+    console.error('[Automations] Error fetching flows:', flowsError)
+    return false
+  }
 
-  let matchedFlow = null
+  // Filter: global flows (null instance_id) OR flows matching this specific instance
+  const eligibleFlows = (flows || []).filter((f: any) =>
+    !f.instance_id || f.instance_id === instanceId
+  )
 
-  for (const flow of flows) {
-    if (flow.trigger_type === 'welcome' || flow.trigger_type === 'both') {
+  console.log(`[Automations] Found ${eligibleFlows.length} eligible flows (${flows?.length || 0} total for org)`)
+
+  if (!eligibleFlows.length) return false
+
+  let matchedFlow: any = null
+
+  for (const flow of eligibleFlows) {
+    const triggerType = flow.trigger_type
+    console.log(`[Automations] Checking flow "${flow.name}" trigger="${triggerType}" instance_id=${flow.instance_id}`)
+
+    // Welcome/first message trigger
+    if (triggerType === 'welcome' || triggerType === 'both') {
       if (isFirstMessage) {
+        console.log(`[Automations] Matched flow "${flow.name}" via WELCOME trigger`)
         matchedFlow = flow
         break
       }
     }
-    
-    if (flow.trigger_type === 'keyword' || flow.trigger_type === 'both') {
-      const keywords = (flow.trigger_keywords || []).map((k: string) => k.toLowerCase().trim())
-      const textLower = textContent.toLowerCase()
-      if (keywords.some((k: string) => textLower.includes(k))) {
+
+    // Keyword trigger
+    if (triggerType === 'keyword' || triggerType === 'both') {
+      const keywords = (flow.trigger_keywords || [])
+        .map((k: string) => k.toLowerCase().trim())
+        .filter(Boolean)
+      const textLower = textContent.toLowerCase().trim()
+      const matched = keywords.some((k: string) => textLower.includes(k))
+      console.log(`[Automations] Keywords [${keywords.join(', ')}] vs "${textLower}" → ${matched}`)
+      if (matched) {
+        console.log(`[Automations] Matched flow "${flow.name}" via KEYWORD trigger`)
         matchedFlow = flow
         break
       }
     }
   }
 
-  if (matchedFlow) {
-    // Start flow
-    const firstNode = matchedFlow.nodes.find((n: any) => n.id.startsWith('trigger')) || matchedFlow.nodes[0]
-    if (!firstNode) return false
-
-    // Create state
-    const { data: newState } = await (admin as any)
-      .from('flow_states')
-      .insert({
-        org_id: orgId,
-        contact_id: contactId,
-        flow_id: matchedFlow.id,
-        current_node_id: firstNode.id,
-        status: 'active'
-      })
-      .select('*, flow:automation_flows(*)')
-      .single()
-
-    if (newState) {
-      // Execute from first node
-      return await executeFlowStep(newState, textContent, conversationId, phone, orgId, instanceId)
-    }
+  if (!matchedFlow) {
+    console.log('[Automations] No matching flow found')
+    return false
   }
 
-  return false // No automation handled this message
+  // Start the matched flow
+  const nodes = matchedFlow.nodes || []
+  const edges = matchedFlow.edges || []
+
+  // Find the trigger node
+  const triggerNode = nodes.find((n: any) =>
+    n.id.startsWith('trigger') || n.data?.actionType === 'trigger'
+  )
+
+  // Skip the trigger node — find the first real action node via edge
+  let startNode: any = null
+  if (triggerNode) {
+    const firstEdge = edges.find((e: any) => e.source === triggerNode.id)
+    if (firstEdge) {
+      startNode = nodes.find((n: any) => n.id === firstEdge.target)
+    }
+  }
+  // Fallback to trigger node if no edge found, or first node
+  if (!startNode) startNode = triggerNode || nodes[0]
+
+  if (!startNode) {
+    console.error(`[Automations] Flow "${matchedFlow.name}" has no nodes`)
+    return false
+  }
+
+  console.log(`[Automations] Starting flow "${matchedFlow.name}" at node "${startNode.id}" (${startNode.data?.actionType})`)
+
+  // Create flow state
+  const { data: newState, error: stateError } = await (admin as any)
+    .from('flow_states')
+    .insert({
+      org_id: orgId,
+      contact_id: contactId,
+      flow_id: matchedFlow.id,
+      current_node_id: startNode.id,
+      status: 'active',
+      state_data: {}
+    })
+    .select('*, flow:automation_flows(*)')
+    .single()
+
+  if (stateError || !newState) {
+    console.error('[Automations] Failed to create flow state:', stateError)
+    return false
+  }
+
+  return await executeFlowStep(newState, textContent, conversationId, phone, orgId, instanceId)
 }
 
-async function executeFlowStep(state: any, incomingText: string, conversationId: string, phone: string, orgId: string, instanceId: string): Promise<boolean> {
+async function executeFlowStep(
+  state: any,
+  incomingText: string,
+  conversationId: string,
+  phone: string,
+  orgId: string,
+  instanceId: string
+): Promise<boolean> {
   const admin = createAdminClient()
   const flow = state.flow
   const nodes = flow.nodes || []
   const edges = flow.edges || []
 
   let currentNodeId = state.current_node_id
-  let maxSteps = 5 // Prevent infinite loops
-  let waitingForInput = false
+  let maxSteps = 10 // Prevent infinite loops
 
-  while (maxSteps > 0 && !waitingForInput) {
+  while (maxSteps > 0) {
+    maxSteps--
     const currentNode = nodes.find((n: any) => n.id === currentNodeId)
     if (!currentNode) {
-      // Flow ended or broken
+      console.log(`[Automations] Node "${currentNodeId}" not found, ending flow`)
       await endFlow(state.id)
-      return true // Handled
+      return true
     }
 
-    // Process node action
-    if (currentNode.data.actionType === 'message') {
-      // Send message
+    const actionType = currentNode.data?.actionType
+    console.log(`[Automations] Executing node "${currentNodeId}" type="${actionType}"`)
+
+    if (actionType === 'trigger') {
+      // Skip trigger node, move to next
+      console.log('[Automations] Skipping trigger node...')
+
+    } else if (actionType === 'message') {
       await saveAndSendAIMessage({
         conversationId,
         orgId,
         contactPhone: phone,
         replyText: currentNode.data.content as string,
-        instanceId
+        instanceId,
       })
-    } else if (currentNode.data.actionType === 'image') {
-      // Send image
+
+    } else if (actionType === 'image') {
       if (currentNode.data.url) {
         await saveAndSendMediaMessage({
           conversationId,
@@ -129,21 +197,24 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
           mediaUrl: currentNode.data.url as string,
           caption: currentNode.data.content as string | undefined,
           mediaType: 'image',
-          instanceId
+          instanceId,
         })
       }
-    } else if (currentNode.data.actionType === 'delay') {
-      // Pause execution
-      const seconds = currentNode.data.seconds || 5
+
+    } else if (actionType === 'delay') {
+      // Cap delay to avoid blocking too long in webhook context
+      const seconds = Math.min(Number(currentNode.data.seconds) || 5, 30)
+      console.log(`[Automations] Delay ${seconds}s`)
       await new Promise(resolve => setTimeout(resolve, seconds * 1000))
-    } else if (currentNode.data.actionType === 'handoff') {
+
+    } else if (actionType === 'handoff') {
       const handoffMsg = currentNode.data.content || 'Serás transferido a un asesor en breve...'
       await saveAndSendAIMessage({
         conversationId,
         orgId,
         contactPhone: phone,
         replyText: handoffMsg as string,
-        instanceId
+        instanceId,
       })
       const updatePayload: any = { is_ai_active: false, status: 'pending' }
       if (currentNode.data.department_id) {
@@ -152,139 +223,117 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
       await (admin as any).from('conversations').update(updatePayload).eq('id', conversationId)
       await endFlow(state.id)
       return true
-    } else if (currentNode.data.actionType === 'menu') {
-      if (!state.state_data.waiting_for_input) {
-        // Format menu text to include options
+
+    } else if (actionType === 'menu') {
+      if (!state.state_data?.waiting_for_input) {
+        // First time hitting this node — send the menu options
         let menuText = currentNode.data.content || 'Selecciona una opción'
-        if (currentNode.data.options && Array.isArray(currentNode.data.options) && currentNode.data.options.length > 0) {
+        if (currentNode.data.options?.length > 0) {
           menuText += '\n\n' + currentNode.data.options.join('\n')
         }
-
-        // Send menu message and wait
         await saveAndSendAIMessage({
           conversationId,
           orgId,
           contactPhone: phone,
           replyText: menuText,
-          instanceId
+          instanceId,
         })
         await (admin as any).from('flow_states').update({
           current_node_id: currentNodeId,
-          state_data: { waiting_for_input: true, options: currentNode.data.options }
+          state_data: { waiting_for_input: true, options: currentNode.data.options },
         }).eq('id', state.id)
-        return true
+        return true // Wait for user input
+
       } else {
-        // Resuming from menu
-        const options = state.state_data.options || []
+        // Resuming — match user input to menu option
+        const options: string[] = state.state_data.options || []
         const inputStr = incomingText.trim().toLowerCase()
-        
+
         const matchedIndex = options.findIndex((opt: string) => {
           const optLower = opt.trim().toLowerCase()
           if (optLower === inputStr) return true
-          
-          // Match first number/word (e.g., "1" matches "1 - Citas")
           const firstPart = optLower.split(/[\s-.)]+/)[0]
-          if (firstPart && firstPart === inputStr) return true
-          
-          return false
+          return firstPart && firstPart === inputStr
         })
-        
+
         if (matchedIndex !== -1) {
           state.state_data.waiting_for_input = false
-          // We need to branch using matchedOption index
           const nextEdge = edges.find((e: any) => e.source === currentNodeId && e.sourceHandle === `opt-${matchedIndex}`)
           if (nextEdge) {
             currentNodeId = nextEdge.target
             await (admin as any).from('flow_states').update({
               current_node_id: currentNodeId,
-              state_data: state.state_data
+              state_data: state.state_data,
             }).eq('id', state.id)
-            continue // Skip default next Edge routing
-          } else {
-            await endFlow(state.id)
-            return true
+            continue
           }
+          await endFlow(state.id)
+          return true
         } else {
-          // Invalid option, send error or wait again
           await saveAndSendAIMessage({
             conversationId,
             orgId,
             contactPhone: phone,
-            replyText: 'Opción no válida. Por favor, selecciona una de las opciones del menú.',
-            instanceId
+            replyText: 'Opción no válida. Por favor selecciona una de las opciones del menú.',
+            instanceId,
           })
           return true
         }
       }
-    } else if (currentNode.data.actionType === 'condition') {
-      // If we just arrived here, wait for input
-      if (!state.state_data.waiting_for_condition) {
+
+    } else if (actionType === 'condition') {
+      if (!state.state_data?.waiting_for_condition) {
         await (admin as any).from('flow_states').update({
           current_node_id: currentNodeId,
-          state_data: { waiting_for_condition: true, expected: currentNode.data.keyword, operator: currentNode.data.operator }
+          state_data: {
+            waiting_for_condition: true,
+            expected: currentNode.data.keyword,
+            operator: currentNode.data.operator,
+          },
         }).eq('id', state.id)
         return true
+
       } else {
-        // We are resuming
-        const expected = state.state_data.expected?.toLowerCase() || ''
+        const expected = (state.state_data.expected || '').toLowerCase()
         const operator = state.state_data.operator || 'contains'
         const inputStr = incomingText.toLowerCase()
-        
+
         let conditionPassed = false
-        if (operator === 'contains') {
-          conditionPassed = inputStr.includes(expected)
-        } else if (operator === 'equals') {
-          conditionPassed = inputStr === expected
-        } else if (operator === 'startsWith') {
-          conditionPassed = inputStr.startsWith(expected)
-        }
+        if (operator === 'contains') conditionPassed = inputStr.includes(expected)
+        else if (operator === 'equals') conditionPassed = inputStr === expected
+        else if (operator === 'startsWith') conditionPassed = inputStr.startsWith(expected)
 
         state.state_data.waiting_for_condition = false
-        
-        // Branch
         const handleId = conditionPassed ? 'true' : 'false'
         const nextEdge = edges.find((e: any) => e.source === currentNodeId && e.sourceHandle === handleId)
-        
+          || edges.find((e: any) => e.source === currentNodeId && !e.sourceHandle)
+
         if (nextEdge) {
           currentNodeId = nextEdge.target
           await (admin as any).from('flow_states').update({
             current_node_id: currentNodeId,
-            state_data: state.state_data
+            state_data: state.state_data,
           }).eq('id', state.id)
           continue
-        } else {
-          // If there's no edge, try the default one (fallback), or end flow
-          const defaultEdge = edges.find((e: any) => e.source === currentNodeId && !e.sourceHandle)
-          if (defaultEdge) {
-            currentNodeId = defaultEdge.target
-            await (admin as any).from('flow_states').update({
-              current_node_id: currentNodeId,
-              state_data: state.state_data
-            }).eq('id', state.id)
-            continue
-          } else {
-            await endFlow(state.id)
-            return true
-          }
         }
+        await endFlow(state.id)
+        return true
       }
     }
 
-    // Move to next node (default linear progression for non-branching nodes)
+    // Linear progression: move to the next connected node
     const nextEdge = edges.find((e: any) => e.source === currentNodeId)
     if (nextEdge) {
       currentNodeId = nextEdge.target
       await (admin as any).from('flow_states').update({
         current_node_id: currentNodeId,
-        state_data: state.state_data
+        state_data: state.state_data || {},
       }).eq('id', state.id)
     } else {
-      // End of flow
+      console.log(`[Automations] No more edges from "${currentNodeId}", flow complete`)
       await endFlow(state.id)
       return true
     }
-
-    maxSteps--
   }
 
   return true
@@ -293,4 +342,5 @@ async function executeFlowStep(state: any, incomingText: string, conversationId:
 async function endFlow(stateId: string) {
   const admin = createAdminClient()
   await (admin as any).from('flow_states').update({ status: 'completed' }).eq('id', stateId)
+  console.log(`[Automations] Flow state ${stateId} marked as completed`)
 }
