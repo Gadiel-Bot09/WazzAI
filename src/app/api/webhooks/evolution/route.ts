@@ -8,13 +8,12 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { event, instance, data } = body
 
-    // Extraer orgId del nombre de la instancia (ej. wazzai_12345abcd)
-    if (!instance || !instance.startsWith('wazzai_')) {
-      return NextResponse.json({ error: 'Instancia inválida' }, { status: 400 })
+    console.log(`[Webhook] Received event: ${event} from instance: ${instance}`)
+
+    if (!instance) {
+      return NextResponse.json({ error: 'Instance missing from payload' }, { status: 400 })
     }
     
-    // El orgId original tenía guiones que quitamos al crear la instancia.
-    // Buscaremos la organización en Supabase usando un enfoque seguro.
     const supabaseAdmin = createAdminClient()
 
     if (event === 'CONNECTION_UPDATE' || event === 'connection.update') {
@@ -23,14 +22,21 @@ export async function POST(req: Request) {
       
       console.log(`[Webhook] Instance ${instance} connection update: ${state} (Reason: ${statusReason})`)
       
-      // Reconstruir UUID (ej: 1234567890abcdef1234567890abcdef -> 12345678-90ab-cdef-1234-567890abcdef)
-      const instanceIdStr = instance.replace('wazzai_', '')
-      const uuid = `${instanceIdStr.slice(0,8)}-${instanceIdStr.slice(8,12)}-${instanceIdStr.slice(12,16)}-${instanceIdStr.slice(16,20)}-${instanceIdStr.slice(20)}`
+      // Try to find the instance by name (supports both wazzai_ prefix and custom names)
+      let waInstanceForConn: any = null
+
+      if (instance.startsWith('wazzai_')) {
+        const instanceIdStr = instance.replace('wazzai_', '')
+        const uuid = `${instanceIdStr.slice(0,8)}-${instanceIdStr.slice(8,12)}-${instanceIdStr.slice(12,16)}-${instanceIdStr.slice(16,20)}-${instanceIdStr.slice(20)}`
+        const { data: r } = await supabaseAdmin.from('whatsapp_instances').select('id, org_id').eq('id', uuid).single()
+        waInstanceForConn = r
+      } else {
+        // Fallback: search by name column (Evolution sends back the instance name)
+        const { data: r } = await (supabaseAdmin as any).from('whatsapp_instances').select('id, org_id').eq('name', instance).single()
+        waInstanceForConn = r
+      }
       
-      const { data: waInstanceRaw } = await supabaseAdmin.from('whatsapp_instances').select('id, org_id').eq('id', uuid).single()
-      const waInstance = waInstanceRaw as any
-      
-      if (waInstance && state) {
+      if (waInstanceForConn && state) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabaseAdmin as any)
           .from('whatsapp_instances')
@@ -38,7 +44,7 @@ export async function POST(req: Request) {
             status: state === 'open' ? 'connected' : state === 'connecting' ? 'connecting' : 'disconnected',
             ...(state === 'open' ? { connected_at: new Date().toISOString() } : {})
           })
-          .eq('id', waInstance.id)
+          .eq('id', waInstanceForConn.id)
       }
       
       return NextResponse.json({ success: true })
@@ -75,11 +81,23 @@ export async function POST(req: Request) {
       const messageId = key.id
 
       // Obtener la instancia y el org_id a partir del nombre de instancia
-      const instanceIdStr = instance.replace('wazzai_', '')
-      const uuid = `${instanceIdStr.slice(0,8)}-${instanceIdStr.slice(8,12)}-${instanceIdStr.slice(12,16)}-${instanceIdStr.slice(16,20)}-${instanceIdStr.slice(20)}`
-      
-      const { data: waInstanceRaw } = await supabaseAdmin.from('whatsapp_instances').select('id, org_id').eq('id', uuid).single()
-      const waInstance = waInstanceRaw as any
+      // Supports both wazzai_ prefix (UUID-based) and arbitrary instance names
+      let waInstance: any = null
+
+      if (instance.startsWith('wazzai_')) {
+        const instanceIdStr = instance.replace('wazzai_', '')
+        const uuid = `${instanceIdStr.slice(0,8)}-${instanceIdStr.slice(8,12)}-${instanceIdStr.slice(12,16)}-${instanceIdStr.slice(16,20)}-${instanceIdStr.slice(20)}`
+        const { data: r } = await supabaseAdmin.from('whatsapp_instances').select('id, org_id').eq('id', uuid).single()
+        waInstance = r
+      } else {
+        // Fallback: search by name column (Evolution sends back the instance name it was given)
+        const { data: r } = await (supabaseAdmin as any)
+          .from('whatsapp_instances')
+          .select('id, org_id')
+          .eq('name', instance)
+          .single()
+        waInstance = r
+      }
       if (!waInstance) {
         console.error(`No instance found for ${instance}`)
         return NextResponse.json({ error: 'Instance not found' }, { status: 404 })
@@ -297,7 +315,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Failed to save message' }, { status: 500 })
       }
 
-      // 3. Verificar si la IA está activa para esta conversación y disparar respuesta
+      // 3. Disparar Automations Y/O IA
       if (conversationId) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: convCheck } = await (supabaseAdmin as any)
@@ -306,40 +324,40 @@ export async function POST(req: Request) {
           .eq('id', conversationId)
           .single()
 
-        if (convCheck?.is_ai_active && convCheck?.instance_id) {
-          // Evaluar Flujos primero
-          const isFirstMessage = existingConv ? false : true
-          const handledByFlow = await processAutomations({
-            orgId: org.id,
-            contactId: contactId,
-            conversationId,
-            phone,
-            textContent,
-            isFirstMessage,
-            instanceId: convCheck.instance_id
-          })
+        const convInstanceId = convCheck?.instance_id || waInstance.id
+        const isFirstMessage = existingConv ? false : true
 
-          if (!handledByFlow) {
-            // Disparar AI RAG en background
-            generateAIResponse({
-              conversationId,
-              orgId: org.id,
-              instanceId: convCheck.instance_id,
-              contactPhone: phone,
-              incomingMessage: textContent,
+        // Automations run ALWAYS (regardless of AI toggle)
+        const handledByFlow = await processAutomations({
+          orgId: org.id,
+          contactId: contactId,
+          conversationId,
+          phone,
+          textContent,
+          isFirstMessage,
+          instanceId: convInstanceId
+        })
+
+        // AI RAG only runs if AI is active and no flow handled the message
+        if (!handledByFlow && convCheck?.is_ai_active) {
+          generateAIResponse({
+            conversationId,
+            orgId: org.id,
+            instanceId: convInstanceId,
+            contactPhone: phone,
+            incomingMessage: textContent,
+          })
+            .then(async ({ reply, usedFallback: _ }) => {
+              if (reply) {
+                await saveAndSendAIMessage({
+                  conversationId,
+                  orgId: org.id,
+                  contactPhone: phone,
+                  replyText: reply,
+                })
+              }
             })
-              .then(async ({ reply, usedFallback: _ }) => {
-                if (reply) {
-                  await saveAndSendAIMessage({
-                    conversationId,
-                    orgId: org.id,
-                    contactPhone: phone,
-                    replyText: reply,
-                  })
-                }
-              })
-              .catch(e => console.error('[Webhook] RAG pipeline error:', e))
-          }
+            .catch(e => console.error('[Webhook] RAG pipeline error:', e))
         }
       }
 

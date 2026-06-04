@@ -118,27 +118,45 @@ export async function sendChatMessageAction(
 
     // 2. Guardar el mensaje en Supabase
     const admin = createAdminClient()
+    const now = new Date().toISOString()
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (admin as any).from('messages').insert({
+    // Build the insert payload
+    const msgPayload: Record<string, any> = {
       conversation_id: conversationId,
       org_id: (profile as any).org_id,
       sender_id: user.id,
       direction: 'outbound',
-      content: text,
+      content: text || '',
       status: 'sent',
       message_type: mediaUrl ? 'media' : 'text',
-      media_url: mediaUrl || null,
-      media_type: mediaType || null
-    })
+      sent_at: now,
+    }
+
+    // Add media fields only when present (in case columns don't exist yet)
+    if (mediaUrl) msgPayload.media_url = mediaUrl
+    if (mediaType) msgPayload.media_type = mediaType
+
+    const { data: insertedMsg, error: insertError } = await (admin as any)
+      .from('messages')
+      .insert(msgPayload)
+      .select('id')
+      .single()
+
+    if (insertError) {
+      console.error('[sendChatMessageAction] Failed to save message to DB:', insertError)
+      // Still return ok since the message was already sent via Evolution
+      // but log so we can debug
+      return err(`Mensaje enviado pero error al guardar: ${insertError.message}`)
+    }
 
     // 3. Actualizar conversación
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any).from('conversations').update({
-      last_message_at: new Date().toISOString(),
+      last_message_at: now,
       last_message_preview: mediaUrl ? '📷 Archivo adjunto' : text.substring(0, 50)
     }).eq('id', conversationId)
 
+    console.log(`[sendChatMessageAction] Message saved OK: ${insertedMsg?.id}`)
     return ok(undefined)
   } catch (error) {
     console.error('sendChatMessageAction error:', error)
