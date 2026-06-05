@@ -58,7 +58,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
             if (fullConv) {
               setConversations((prev: any[]) => {
                 // Avoid duplicates
-                if (prev.find(c => c.id === fullConv.id)) return prev
+                if (prev.find((c: any) => c.id === fullConv.id)) return prev
                 return [fullConv, ...prev]
               })
             }
