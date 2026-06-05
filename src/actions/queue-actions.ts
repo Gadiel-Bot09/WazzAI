@@ -32,7 +32,7 @@ async function sendSystemMessage(
   const evolution = new EvolutionClient()
 
   try {
-    await evolution.sendTextMessage(instance.name, phone, text)
+    await evolution.sendTextMessage(instanceId, phone, text)
   } catch (error) {
     console.error('[QueueActions] Error sending system message:', error)
   }
@@ -51,7 +51,7 @@ async function findAvailableAgent(adminClient: any, orgId: string, departmentId:
     .select('user_id, max_active_chats, users!inner(full_name)')
     .eq('org_id', orgId)
     .eq('status', 'online')
-    .eq('role', 'agent') // Admins can be excluded from auto-assign, or we can include them if we want. Let's allow any role for now. Actually, let's include 'admin' too.
+    // Remove .eq('role', 'agent') filter so admins can also receive assigned chats, or because 'role' is a UUID.
 
   if (departmentId) {
     query = query.eq('department_id', departmentId)
