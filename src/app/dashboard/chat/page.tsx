@@ -22,6 +22,7 @@ async function ChatDataFetcher() {
     initialConversations={res.data.conversations} 
     showAssignedAgent={res.data.showAssignedAgent} 
     currentUser={res.data.currentUser}
+    orgId={res.data.orgId}
   />
 }
 

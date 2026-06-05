@@ -1,28 +1,92 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { ConversationList } from './conversation-list'
 import { ChatWindow } from './chat-window'
 import { deleteConversationAction } from '@/actions/conversation-actions'
 import { toast } from 'sonner'
-import { REALTIME_NEW_MESSAGE_EVENT } from './realtime-listener'
+import { createClient } from '@/lib/supabase/client'
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface ChatLayoutProps {
   initialConversations: any[]
   showAssignedAgent: boolean
   currentUser: any
+  orgId: string
 }
 
-export function ChatLayout({ initialConversations, showAssignedAgent, currentUser }: ChatLayoutProps) {
+export function ChatLayout({ initialConversations, showAssignedAgent, currentUser, orgId }: ChatLayoutProps) {
   const [conversations, setConversations] = useState(initialConversations)
-  const [activeTab, setActiveTab] = useState('ai')  // Default: IA tab (flows land here)
+  const [activeTab, setActiveTab] = useState('ai')
   const [activeId, setActiveId] = useState<string | null>(null)
+  const supabase = createClient()
+  
+  // Keep a ref of conversations for use inside realtime callbacks without stale closures
+  const convsRef = useRef(conversations)
+  convsRef.current = conversations
 
-  // Sync when server refreshes
+  // Sync when server sends fresh initial data (only on first mount)
   useEffect(() => {
     setConversations(initialConversations)
-  }, [initialConversations])
+  }, []) // eslint-disable-line
+
+  // ── Supabase Realtime: subscribe directly to conversation changes ──────────
+  useEffect(() => {
+    if (!orgId) return
+
+    const channel = supabase
+      .channel(`chat-layout-convs-${orgId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'conversations', filter: `org_id=eq.${orgId}` },
+        async (payload) => {
+          if (payload.eventType === 'INSERT') {
+            // New conversation created (e.g. by a flow/webhook)
+            // We need to fetch the full conversation with contact info since realtime
+            // payloads don't include joined data
+            const { data: fullConv } = await supabase
+              .from('conversations')
+              .select(`
+                id, is_ai_active, last_message_at, last_message_preview,
+                unread_count, status, department_id, assigned_to,
+                contact:contacts(*),
+                assigned_user:users!conversations_assigned_to_fkey(full_name, avatar_url)
+              `)
+              .eq('id', (payload.new as any).id)
+              .single()
+
+            if (fullConv) {
+              setConversations(prev => {
+                // Avoid duplicates
+                if (prev.find(c => c.id === fullConv.id)) return prev
+                return [fullConv, ...prev]
+              })
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as any
+            setConversations(prev =>
+              prev.map(c => c.id === updated.id ? { ...c, ...updated } : c)
+                  .sort((a, b) => new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime())
+            )
+
+            // If the active conversation was just handed off (ai→pending), switch tab
+            if (updated.is_ai_active === false && updated.status === 'pending') {
+              toast.info('Chat transferido a bandeja de entrada', {
+                description: 'Un flujo ha transferido el chat para atención humana.',
+                duration: 5000,
+              })
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setConversations(prev => prev.filter(c => c.id !== (payload.old as any).id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [orgId]) // eslint-disable-line
 
   const handleDelete = async (id: string) => {
     setConversations(prev => prev.filter(c => c.id !== id))
@@ -55,33 +119,28 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
 
   const closedConversations = conversations.filter(c => c.status === 'closed')
 
-  const getList = (tab: string) => {
+  const getList = useCallback((tab: string) => {
     if (tab === 'mine') return myConversations
     if (tab === 'inbox') return inboxConversations
     if (tab === 'ai') return aiConversations
     if (tab === 'closed') return closedConversations
     return []
-  }
+  }, [myConversations, inboxConversations, aiConversations, closedConversations])
 
   const filteredList = getList(activeTab)
   const activeConversation = conversations.find(c => c.id === activeId)
 
-  // When a handoff happens (conversation moves from AI → Inbox), auto-switch tab
+  // Auto-switch: when active conversation moves from AI tab → Inbox (handoff)
   useEffect(() => {
-    function onNewMessage() {
-      if (activeTab === 'ai' && activeId) {
-        const stillInAi = aiConversations.find(c => c.id === activeId)
-        if (!stillInAi) {
-          // Active conversation left the AI tab → it's now in Inbox (handoff)
-          setActiveTab('inbox')
-        }
+    if (activeTab === 'ai' && activeId) {
+      const stillInAi = aiConversations.find(c => c.id === activeId)
+      if (!stillInAi && inboxConversations.find(c => c.id === activeId)) {
+        setActiveTab('inbox')
       }
     }
-    window.addEventListener(REALTIME_NEW_MESSAGE_EVENT, onNewMessage)
-    return () => window.removeEventListener(REALTIME_NEW_MESSAGE_EVENT, onNewMessage)
-  }, [activeTab, activeId, aiConversations])
+  }, [aiConversations, inboxConversations, activeId, activeTab])
 
-  // Auto-select first conversation on tab change or when list updates
+  // Auto-select first conversation when tab changes or list updates
   useEffect(() => {
     const list = getList(activeTab)
     if (list.length > 0 && !list.find(c => c.id === activeId)) {
@@ -101,7 +160,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
               <TabsTrigger value="mine" className="text-xs gap-1">
                 Míos
                 {myConversations.length > 0 && (
-                  <span className="bg-primary text-white rounded-full px-1 text-[10px] leading-4">
+                  <span className="bg-primary text-white rounded-full px-1 text-[10px] leading-4 min-w-[16px] text-center">
                     {myConversations.length}
                   </span>
                 )}
@@ -109,7 +168,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
               <TabsTrigger value="inbox" className="text-xs gap-1">
                 Bandeja
                 {inboxConversations.length > 0 && (
-                  <span className="bg-orange-500 text-white rounded-full px-1 text-[10px] leading-4">
+                  <span className="bg-orange-500 text-white rounded-full px-1 text-[10px] leading-4 min-w-[16px] text-center">
                     {inboxConversations.length}
                   </span>
                 )}
@@ -117,7 +176,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
               <TabsTrigger value="ai" className="text-xs gap-1">
                 IA
                 {aiConversations.length > 0 && (
-                  <span className="bg-emerald-500 text-white rounded-full px-1 text-[10px] leading-4">
+                  <span className="bg-emerald-500 text-white rounded-full px-1 text-[10px] leading-4 min-w-[16px] text-center">
                     {aiConversations.length}
                   </span>
                 )}
@@ -143,6 +202,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
       <div className={`flex-1 flex-col h-full bg-[#f0f2f5] dark:bg-muted/10 ${!activeId ? 'hidden md:flex' : 'flex'}`}>
         {activeConversation ? (
           <ChatWindow
+            key={activeConversation.id}
             conversationId={activeConversation.id}
             contactName={activeConversation.contact?.name || activeConversation.contact?.phone_number || 'Desconocido'}
             contactPhone={activeConversation.contact?.phone_number || ''}

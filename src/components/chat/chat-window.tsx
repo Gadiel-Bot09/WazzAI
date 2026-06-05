@@ -1,5 +1,6 @@
 'use client'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageBubble } from './message-bubble'
@@ -78,17 +79,39 @@ export function ChatWindow({
     fetchMessages()
   }, [fetchMessages, initialStatus, initialAIActive])
 
-  // Listen for realtime new message events
+  // Listen for realtime new messages directly from Supabase
   useEffect(() => {
-    function handleNewMessage(e: Event) {
-      const event = e as CustomEvent
-      if (event.detail?.conversationId === conversationId) {
-        fetchMessages()
-      }
+    if (!conversationId) return
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`chat-window-msgs-${conversationId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
+        (payload) => {
+          const newMsg = payload.new as any
+          setMessages(prev => {
+            if (prev.find(m => m.id === newMsg.id)) return prev
+            return [...prev, newMsg]
+          })
+          scrollToBottom()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
+        (payload) => {
+          const updatedMsg = payload.new as any
+          setMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m))
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
     }
-    window.addEventListener(REALTIME_NEW_MESSAGE_EVENT, handleNewMessage)
-    return () => window.removeEventListener(REALTIME_NEW_MESSAGE_EVENT, handleNewMessage)
-  }, [conversationId, fetchMessages])
+  }, [conversationId])
 
   const scrollToBottom = () => {
     setTimeout(() => {

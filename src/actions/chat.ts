@@ -6,7 +6,7 @@ import type { ActionResult } from '@/lib/utils/server'
 import { evolutionClient } from '@/lib/evolution/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export async function getConversationsAction(): Promise<ActionResult<{ conversations: any[]; showAssignedAgent: boolean; currentUser: { id: string; departmentId: string | null; role: string; permissions: any } }>> {
+export async function getConversationsAction(): Promise<ActionResult<{ conversations: any[]; showAssignedAgent: boolean; orgId: string; currentUser: { id: string; departmentId: string | null; role: string; permissions: any } }>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return err('No autorizado')
@@ -46,7 +46,7 @@ export async function getConversationsAction(): Promise<ActionResult<{ conversat
     return err('Error al obtener conversaciones')
   }
 
-  return ok({ conversations, showAssignedAgent, currentUser: { id: user.id, departmentId: teamMember?.department_id, role: teamMember?.roles?.name || 'agent', permissions: teamMember?.roles?.permissions || {} } })
+  return ok({ conversations, showAssignedAgent, orgId: profile.org_id, currentUser: { id: user.id, departmentId: teamMember?.department_id, role: teamMember?.roles?.name || 'agent', permissions: teamMember?.roles?.permissions || {} } })
 }
 
 export async function getMessagesAction(conversationId: string): Promise<ActionResult<any[]>> {
