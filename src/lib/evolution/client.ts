@@ -147,28 +147,34 @@ export class EvolutionClient {
   /**
    * Muestra el indicador "Escribiendo..." en WhatsApp antes de enviar un mensaje.
    * @param instanceId ID de la instancia de Evolution
-   * @param phone Número de WhatsApp del destinatario (formato internacional)
-   * @param durationMs Cuánto tiempo mostrar el typing (en ms). Evolution lo apaga automáticamente tras enviar.
+   * @param phone Número de WhatsApp del destinatario (formato internacional sin @)
+   * @param durationMs Cuánto tiempo esperar antes de enviar el mensaje real (en ms)
    */
   async sendTyping(instanceId: string, phone: string, durationMs: number = 1500): Promise<void> {
     const instanceName = this.getInstanceName(instanceId)
-    // Normalize phone: Evolution expects "number@s.whatsapp.net" for individual chats
-    const jid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`
+    // Evolution API espera el número SIN @s.whatsapp.net en el campo number
+    const number = phone.replace('@s.whatsapp.net', '').replace('@c.us', '')
 
     try {
-      // Send composing presence
-      await fetch(`${this.baseUrl}/chat/sendPresence/${instanceName}`, {
+      const res = await fetch(`${this.baseUrl}/chat/sendPresence/${instanceName}`, {
         method: 'POST',
         headers: this.headers,
         body: JSON.stringify({
-          number: jid,
-          options: { presence: 'composing', delay: durationMs },
+          number,          // ← top-level, sin @s.whatsapp.net
+          presence: 'composing', // ← top-level, NO dentro de options
+          delay: durationMs,
         }),
       })
-      // Wait for the typing duration so the user sees "Escribiendo..."
+
+      if (!res.ok) {
+        const errText = await res.text()
+        console.warn(`[Evolution] sendTyping HTTP ${res.status}: ${errText}`)
+      }
+
+      // Esperar la duración para que el usuario vea "Escribiendo..." antes del mensaje
       await new Promise(resolve => setTimeout(resolve, durationMs))
     } catch (err) {
-      // Non-fatal: if typing fails, we still send the message
+      // Non-fatal: si falla el typing, igual se envía el mensaje
       console.warn('[Evolution] sendTyping failed (non-fatal):', err)
     }
   }
