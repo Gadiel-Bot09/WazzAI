@@ -183,7 +183,8 @@ export async function updateAgentStatusAction(newStatus: 'online' | 'offline' | 
   if (!user) return { success: false, error: 'No autorizado' }
 
   // Get org_id
-  const { data: profile } = await supabase.from('users').select('org_id').eq('id', user.id).single()
+  const { data: profileData } = await supabase.from('users').select('org_id').eq('id', user.id).single()
+  const profile = profileData as any
   if (!profile?.org_id) return { success: false, error: 'Organización no encontrada' }
 
   // Update status in team_members
@@ -200,13 +201,14 @@ export async function updateAgentStatusAction(newStatus: 'online' | 'offline' | 
 
   // If going online, process queue to see if there's any chat waiting for this agent
   if (newStatus === 'online') {
-    const { data: teamMember } = await supabase
+    const { data: teamData } = await supabase
       .from('team_members')
       .select('department_id')
       .eq('user_id', user.id)
       .eq('org_id', profile.org_id)
       .single()
       
+    const teamMember = teamData as any
     // Call process queue in the background (no await needed for UI response)
     processQueue(profile.org_id, teamMember?.department_id || null).catch(console.error)
   }
