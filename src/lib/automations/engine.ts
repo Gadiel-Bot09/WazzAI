@@ -125,7 +125,28 @@ export async function processAutomations({
 
   console.log(`[Automations] Starting flow "${matchedFlow.name}" at node "${startNode.id}" (${startNode.data?.actionType})`)
 
-  // Create flow state
+  // Create flow state — first remove old completed/failed states to avoid UNIQUE constraint issues
+  // (This handles cases where the DB migration 007 wasn't applied)
+  const { error: deleteError } = await (admin as any)
+    .from('flow_states')
+    .delete()
+    .eq('contact_id', contactId)
+    .eq('org_id', orgId)
+    .in('status', ['completed', 'failed', 'error'])
+
+  if (deleteError) {
+    console.warn('[Automations] Could not clean up old flow states (non-fatal):', deleteError.message)
+  }
+
+  // Also mark any stale 'active' states as failed (edge case: orphaned active state)
+  await (admin as any)
+    .from('flow_states')
+    .update({ status: 'failed' })
+    .eq('contact_id', contactId)
+    .eq('org_id', orgId)
+    .eq('status', 'active')
+
+  // Insert new state
   const { data: newState, error: stateError } = await (admin as any)
     .from('flow_states')
     .insert({
@@ -140,7 +161,7 @@ export async function processAutomations({
     .single()
 
   if (stateError || !newState) {
-    console.error('[Automations] Failed to create flow state:', stateError)
+    console.error('[Automations] Failed to create flow state:', JSON.stringify(stateError))
     return false
   }
 

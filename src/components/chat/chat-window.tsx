@@ -58,7 +58,14 @@ export function ChatWindow({
   const fetchMessages = useCallback(async () => {
     const res = await getMessagesAction(conversationId)
     if (res.success) {
-      setMessages(res.data)
+      // Deduplicate by id to prevent any UI duplicates
+      const seen = new Set()
+      const unique = (res.data as any[]).filter(m => {
+        if (seen.has(m.id)) return false
+        seen.add(m.id)
+        return true
+      })
+      setMessages(unique)
     }
     setLoading(false)
     scrollToBottom()

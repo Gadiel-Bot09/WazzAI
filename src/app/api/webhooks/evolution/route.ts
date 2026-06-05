@@ -292,8 +292,23 @@ export async function POST(req: Request) {
         }
       }
 
-      // 2. Guardar el mensaje
+      // 2. Guardar el mensaje — con control de idempotencia
+      // Evolution API a veces envía el mismo webhook 2 veces para el mismo mensaje.
+      // Si el evolution_msg_id ya existe, simplemente ignoramos el duplicado.
       const now = new Date().toISOString()
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingMsg } = await (supabaseAdmin as any)
+        .from('messages')
+        .select('id')
+        .eq('evolution_msg_id', messageId)
+        .maybeSingle()
+
+      if (existingMsg) {
+        console.log(`[Webhook] Duplicate message detected (evolution_msg_id=${messageId}), skipping.`)
+        return NextResponse.json({ success: true, duplicate: true })
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error: insertError } = await (supabaseAdmin as any)
         .from('messages')
