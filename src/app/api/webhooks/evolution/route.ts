@@ -292,57 +292,74 @@ export async function POST(req: Request) {
         }
       }
 
-      // 2. Guardar el mensaje — con control de idempotencia
-      // Evolution API a veces envía el mismo webhook 2 veces para el mismo mensaje.
-      // Si el evolution_msg_id ya existe, simplemente ignoramos el duplicado.
+      // 2. Guardar el mensaje — idempotencia via ON CONFLICT DO NOTHING
+      // (Requiere migration 008 que agrega UNIQUE constraint en evolution_msg_id)
       const now = new Date().toISOString()
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: existingMsg } = await (supabaseAdmin as any)
-        .from('messages')
-        .select('id')
-        .eq('evolution_msg_id', messageId)
-        .maybeSingle()
+      let insertedId: string | null = null
 
-      if (existingMsg) {
-        console.log(`[Webhook] Duplicate message detected (evolution_msg_id=${messageId}), skipping.`)
-        return NextResponse.json({ success: true, duplicate: true })
+      if (messageId) {
+        // Si tenemos ID de Evolution, usamos upsert ignorando duplicados (race-condition safe)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: inserted, error: insertError } = await (supabaseAdmin as any)
+          .from('messages')
+          .upsert({
+            conversation_id: conversationId,
+            org_id: org.id,
+            content: textContent,
+            direction: 'inbound',
+            status: 'delivered',
+            evolution_msg_id: messageId,
+            sent_at: now,
+          }, { onConflict: 'evolution_msg_id', ignoreDuplicates: true })
+          .select('id')
+          .maybeSingle()
+
+        if (insertError) {
+          console.error('[Webhook] Error inserting message:', insertError)
+          return NextResponse.json({ error: 'Failed to save message' }, { status: 500 })
+        }
+
+        if (!inserted) {
+          // ignoreDuplicates=true returned nothing → el mensaje ya existía → duplicado
+          console.log(`[Webhook] Duplicate evolution_msg_id=${messageId}, skipping.`)
+          return NextResponse.json({ success: true, duplicate: true })
+        }
+
+        insertedId = inserted.id
+      } else {
+        // Sin ID de Evolution (raro) — insert directo
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: inserted, error: insertError } = await (supabaseAdmin as any)
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            org_id: org.id,
+            content: textContent,
+            direction: 'inbound',
+            status: 'delivered',
+            sent_at: now,
+          })
+          .select('id')
+          .single()
+
+        if (insertError) {
+          console.error('[Webhook] Error inserting message (no msg_id):', insertError)
+          return NextResponse.json({ error: 'Failed to save message' }, { status: 500 })
+        }
+        insertedId = inserted?.id
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: insertError } = await (supabaseAdmin as any)
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          org_id: org.id,
-          content: textContent,
-          direction: 'inbound',
-          status: 'delivered',
-          evolution_msg_id: messageId,
-          sent_at: now,
-        })
+      console.log(`[Webhook] Message saved: id=${insertedId}`)
 
-      // Actualizar lead para reflejar la última actividad
+      // Actualizar lead y conversación
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabaseAdmin as any).from('leads').update({ last_activity_at: now }).eq('id', leadId)
-
-      // Actualizar conversación: preview, timestamp, e incrementar unread
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabaseAdmin as any).from('conversations').update({ 
+      await (supabaseAdmin as any).from('conversations').update({
         last_message_at: now,
-        last_message_preview: textContent.substring(0, 50),
-        unread_count: (supabaseAdmin as any).rpc ? undefined : undefined // handled below
+        last_message_preview: textContent.substring(0, 50)
       }).eq('id', conversationId)
-
-      // Increment unread_count via RPC for atomicity
-      await (supabaseAdmin as any).rpc('increment_unread', { conv_id: conversationId }).catch(() => {
-        // RPC may not exist, fallback: just update normally (no atomic increment)
-      })
-
-      if (insertError) {
-        console.error('Error saving message:', insertError)
-        return NextResponse.json({ error: 'Failed to save message' }, { status: 500 })
-      }
 
       // 3. Disparar Automations Y/O IA
       if (conversationId) {

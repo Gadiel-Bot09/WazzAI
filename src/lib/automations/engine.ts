@@ -58,7 +58,7 @@ export async function processAutomations({
     !f.instance_id || f.instance_id === instanceId
   )
 
-  console.log(`[Automations] Found ${eligibleFlows.length} eligible flows (${flows?.length || 0} total for org)`)
+  console.log(`[Automations] Found ${eligibleFlows.length} eligible flows (${flows?.length || 0} total for org), isFirstMessage=${isFirstMessage}, text="${textContent}"`)
 
   if (!eligibleFlows.length) return false
 
@@ -68,28 +68,31 @@ export async function processAutomations({
     const triggerType = flow.trigger_type
     console.log(`[Automations] Checking flow "${flow.name}" trigger="${triggerType}" instance_id=${flow.instance_id}`)
 
-    // Welcome/first message trigger
-    if (triggerType === 'welcome' || triggerType === 'both') {
-      if (isFirstMessage) {
-        console.log(`[Automations] Matched flow "${flow.name}" via WELCOME trigger`)
-        matchedFlow = flow
-        break
-      }
+    let matched = false
+
+    // Welcome/first message trigger — fires when conversation is new
+    if ((triggerType === 'welcome' || triggerType === 'both') && isFirstMessage) {
+      console.log(`[Automations] Matched flow "${flow.name}" via WELCOME trigger`)
+      matched = true
     }
 
-    // Keyword trigger
-    if (triggerType === 'keyword' || triggerType === 'both') {
+    // Keyword trigger — fires regardless of isFirstMessage
+    if (!matched && (triggerType === 'keyword' || triggerType === 'both')) {
       const keywords = (flow.trigger_keywords || [])
         .map((k: string) => k.toLowerCase().trim())
         .filter(Boolean)
       const textLower = textContent.toLowerCase().trim()
-      const matched = keywords.some((k: string) => textLower.includes(k))
-      console.log(`[Automations] Keywords [${keywords.join(', ')}] vs "${textLower}" → ${matched}`)
-      if (matched) {
+      const keywordMatch = keywords.length === 0 ? false : keywords.some((k: string) => textLower.includes(k))
+      console.log(`[Automations] Keywords [${keywords.join(', ')}] vs "${textLower}" → ${keywordMatch}`)
+      if (keywordMatch) {
         console.log(`[Automations] Matched flow "${flow.name}" via KEYWORD trigger`)
-        matchedFlow = flow
-        break
+        matched = true
       }
+    }
+
+    if (matched) {
+      matchedFlow = flow
+      break
     }
   }
 
