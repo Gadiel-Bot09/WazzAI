@@ -16,7 +16,7 @@ interface ChatLayoutProps {
 }
 
 export function ChatLayout({ initialConversations, showAssignedAgent, currentUser, orgId }: ChatLayoutProps) {
-  const [conversations, setConversations] = useState(initialConversations)
+  const [conversations, setConversations] = useState<any[]>(initialConversations)
   const [activeTab, setActiveTab] = useState('ai')
   const [activeId, setActiveId] = useState<string | null>(null)
   const supabase = createClient()
@@ -56,7 +56,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
               .single()
 
             if (fullConv) {
-              setConversations(prev => {
+              setConversations((prev: any[]) => {
                 // Avoid duplicates
                 if (prev.find(c => c.id === fullConv.id)) return prev
                 return [fullConv, ...prev]
