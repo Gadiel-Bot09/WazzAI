@@ -1,5 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { saveAndSendAIMessage, saveAndSendMediaMessage } from '../ai/rag'
+import { evolutionClient } from '@/lib/evolution/client'
+
+/** Typing duration proportional to message length: 30ms/char, min 1s, max 4s */
+function calcTypingMs(text: string): number {
+  return Math.max(1000, Math.min(text.length * 30, 4000))
+}
 
 export async function processAutomations({
   orgId,
@@ -204,16 +210,19 @@ async function executeFlowStep(
       console.log('[Automations] Skipping trigger node...')
 
     } else if (actionType === 'message') {
+      const msgText = currentNode.data.content as string
+      await evolutionClient.sendTyping(instanceId, phone, calcTypingMs(msgText))
       await saveAndSendAIMessage({
         conversationId,
         orgId,
         contactPhone: phone,
-        replyText: currentNode.data.content as string,
+        replyText: msgText,
         instanceId,
       })
 
     } else if (actionType === 'image') {
       if (currentNode.data.url) {
+        await evolutionClient.sendTyping(instanceId, phone, 1500)
         await saveAndSendMediaMessage({
           conversationId,
           orgId,
@@ -233,6 +242,7 @@ async function executeFlowStep(
 
     } else if (actionType === 'handoff') {
       const handoffMsg = currentNode.data.content || 'Serás transferido a un asesor en breve...'
+      await evolutionClient.sendTyping(instanceId, phone, calcTypingMs(handoffMsg as string))
       await saveAndSendAIMessage({
         conversationId,
         orgId,
@@ -255,6 +265,7 @@ async function executeFlowStep(
         if (currentNode.data.options?.length > 0) {
           menuText += '\n\n' + currentNode.data.options.join('\n')
         }
+        await evolutionClient.sendTyping(instanceId, phone, calcTypingMs(menuText))
         await saveAndSendAIMessage({
           conversationId,
           orgId,
@@ -294,11 +305,13 @@ async function executeFlowStep(
           await endFlow(state.id)
           return true
         } else {
+          const invalidMsg = 'Opción no válida. Por favor selecciona una de las opciones del menú.'
+          await evolutionClient.sendTyping(instanceId, phone, calcTypingMs(invalidMsg))
           await saveAndSendAIMessage({
             conversationId,
             orgId,
             contactPhone: phone,
-            replyText: 'Opción no válida. Por favor selecciona una de las opciones del menú.',
+            replyText: invalidMsg,
             instanceId,
           })
           return true
