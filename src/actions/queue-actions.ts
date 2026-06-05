@@ -32,7 +32,7 @@ async function sendSystemMessage(
   const evolution = new EvolutionClient()
 
   try {
-    await evolution.sendText(instance.name, phone, text)
+    await evolution.sendTextMessage(instance.name, phone, text)
   } catch (error) {
     console.error('[QueueActions] Error sending system message:', error)
   }
