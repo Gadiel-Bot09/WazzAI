@@ -5,6 +5,8 @@ import { ConversationList } from './conversation-list'
 import { ChatWindow } from './chat-window'
 import { deleteConversationAction } from '@/actions/conversation-actions'
 import { toast } from 'sonner'
+import { REALTIME_NEW_MESSAGE_EVENT } from './realtime-listener'
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface ChatLayoutProps {
   initialConversations: any[]
@@ -12,13 +14,12 @@ interface ChatLayoutProps {
   currentUser: any
 }
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
 export function ChatLayout({ initialConversations, showAssignedAgent, currentUser }: ChatLayoutProps) {
   const [conversations, setConversations] = useState(initialConversations)
-  const [activeTab, setActiveTab] = useState('mine')
+  const [activeTab, setActiveTab] = useState('ai')  // Default: IA tab (flows land here)
   const [activeId, setActiveId] = useState<string | null>(null)
 
+  // Sync when server refreshes
   useEffect(() => {
     setConversations(initialConversations)
   }, [initialConversations])
@@ -33,67 +34,104 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
 
   const isAdmin = currentUser.role === 'admin'
 
-  // Filter logic
-  const myConversations = conversations.filter(c => c.assigned_to === currentUser.id && c.status !== 'closed')
-  
+  // ── Filter lists ─────────────────────────────────────────────────────────────
+  const myConversations = conversations.filter(c =>
+    c.assigned_to === currentUser.id && c.status !== 'closed'
+  )
+
   const inboxConversations = conversations.filter(c => {
     if (c.status === 'closed') return false
-    const isAi = c.is_ai_active === true || c.status === 'ai'
-    if (isAi) return false
+    if (c.is_ai_active === true) return false
     if (c.assigned_to && c.assigned_to !== currentUser.id) return false
-    if (c.assigned_to === currentUser.id) return false // It's in 'mine'
-    
-    // Department check
+    if (c.assigned_to === currentUser.id) return false
     if (isAdmin) return true
     if (!c.department_id) return true
     return c.department_id === currentUser.departmentId
   })
 
-  const aiConversations = conversations.filter(c => (c.is_ai_active === true || c.status === 'ai') && c.status !== 'closed')
+  const aiConversations = conversations.filter(c =>
+    c.is_ai_active === true && c.status !== 'closed'
+  )
 
   const closedConversations = conversations.filter(c => c.status === 'closed')
 
-  const getFilteredConversations = () => {
-    if (activeTab === 'mine') return myConversations
-    if (activeTab === 'inbox') return inboxConversations
-    if (activeTab === 'ai') return aiConversations
-    if (activeTab === 'closed') return closedConversations
+  const getList = (tab: string) => {
+    if (tab === 'mine') return myConversations
+    if (tab === 'inbox') return inboxConversations
+    if (tab === 'ai') return aiConversations
+    if (tab === 'closed') return closedConversations
     return []
   }
 
-  const filteredList = getFilteredConversations()
+  const filteredList = getList(activeTab)
   const activeConversation = conversations.find(c => c.id === activeId)
 
-  // Auto select first on tab change
+  // When a handoff happens (conversation moves from AI → Inbox), auto-switch tab
   useEffect(() => {
-    if (filteredList.length > 0 && !filteredList.find(c => c.id === activeId)) {
-      setActiveId(filteredList[0].id)
-    } else if (filteredList.length === 0) {
+    function onNewMessage() {
+      if (activeTab === 'ai' && activeId) {
+        const stillInAi = aiConversations.find(c => c.id === activeId)
+        if (!stillInAi) {
+          // Active conversation left the AI tab → it's now in Inbox (handoff)
+          setActiveTab('inbox')
+        }
+      }
+    }
+    window.addEventListener(REALTIME_NEW_MESSAGE_EVENT, onNewMessage)
+    return () => window.removeEventListener(REALTIME_NEW_MESSAGE_EVENT, onNewMessage)
+  }, [activeTab, activeId, aiConversations])
+
+  // Auto-select first conversation on tab change or when list updates
+  useEffect(() => {
+    const list = getList(activeTab)
+    if (list.length > 0 && !list.find(c => c.id === activeId)) {
+      setActiveId(list[0].id)
+    } else if (list.length === 0) {
       setActiveId(null)
     }
-  }, [activeTab]) // Intentionally not including filteredList to avoid changing activeId on every new message
+  }, [activeTab, conversations]) // eslint-disable-line
 
   return (
     <div className="flex w-full h-full">
-      {/* Sidebar - Lista de Conversaciones */}
+      {/* Sidebar */}
       <div className={`w-full md:w-80 lg:w-96 flex-shrink-0 border-r bg-white dark:bg-background ${activeId ? 'hidden md:flex flex-col' : 'flex flex-col'}`}>
         <div className="p-4 border-b h-[68px] flex flex-col justify-center shadow-sm z-10">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-4 h-9">
-              <TabsTrigger value="mine" className="text-xs">Míos</TabsTrigger>
-              <TabsTrigger value="inbox" className="text-xs">
-                Bandeja {inboxConversations.length > 0 && `(${inboxConversations.length})`}
+              <TabsTrigger value="mine" className="text-xs gap-1">
+                Míos
+                {myConversations.length > 0 && (
+                  <span className="bg-primary text-white rounded-full px-1 text-[10px] leading-4">
+                    {myConversations.length}
+                  </span>
+                )}
               </TabsTrigger>
-              <TabsTrigger value="ai" className="text-xs">IA</TabsTrigger>
+              <TabsTrigger value="inbox" className="text-xs gap-1">
+                Bandeja
+                {inboxConversations.length > 0 && (
+                  <span className="bg-orange-500 text-white rounded-full px-1 text-[10px] leading-4">
+                    {inboxConversations.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="ai" className="text-xs gap-1">
+                IA
+                {aiConversations.length > 0 && (
+                  <span className="bg-emerald-500 text-white rounded-full px-1 text-[10px] leading-4">
+                    {aiConversations.length}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="closed" className="text-xs">Cerrados</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
+
         <div className="flex-1 overflow-hidden">
-          <ConversationList 
-            conversations={filteredList} 
-            activeId={activeId} 
-            onSelect={setActiveId} 
+          <ConversationList
+            conversations={filteredList}
+            activeId={activeId}
+            onSelect={setActiveId}
             onDelete={handleDelete}
             showAssignedAgent={showAssignedAgent}
             currentUser={currentUser}
@@ -101,12 +139,12 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
         </div>
       </div>
 
-      {/* Main - Ventana de Chat */}
+      {/* Chat window */}
       <div className={`flex-1 flex-col h-full bg-[#f0f2f5] dark:bg-muted/10 ${!activeId ? 'hidden md:flex' : 'flex'}`}>
         {activeConversation ? (
-          <ChatWindow 
-            conversationId={activeConversation.id} 
-            contactName={activeConversation.contact?.name || activeConversation.contact?.phone_number || 'Desconocido'} 
+          <ChatWindow
+            conversationId={activeConversation.id}
+            contactName={activeConversation.contact?.name || activeConversation.contact?.phone_number || 'Desconocido'}
             contactPhone={activeConversation.contact?.phone_number || ''}
             isAIActive={activeConversation.is_ai_active ?? false}
             status={activeConversation.status}
