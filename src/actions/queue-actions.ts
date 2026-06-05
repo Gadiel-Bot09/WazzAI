@@ -188,7 +188,7 @@ export async function updateAgentStatusAction(newStatus: 'online' | 'offline' | 
   if (!profile?.org_id) return { success: false, error: 'Organización no encontrada' }
 
   // Update status in team_members
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('team_members')
     .update({ status: newStatus })
     .eq('user_id', user.id)
@@ -201,7 +201,7 @@ export async function updateAgentStatusAction(newStatus: 'online' | 'offline' | 
 
   // If going online, process queue to see if there's any chat waiting for this agent
   if (newStatus === 'online') {
-    const { data: teamData } = await supabase
+    const { data: teamData } = await (supabase as any)
       .from('team_members')
       .select('department_id')
       .eq('user_id', user.id)
