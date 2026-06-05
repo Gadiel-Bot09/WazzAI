@@ -30,7 +30,7 @@ export async function closeConversationAction(
   // 1. Get conversation details (contact phone, instance)
   const { data: conv } = await (admin as any)
     .from('conversations')
-    .select('contact_id, instance_id, org_id, status')
+    .select('contact_id, instance_id, org_id, status, department_id')
     .eq('id', conversationId)
     .single()
 
@@ -84,6 +84,10 @@ export async function closeConversationAction(
     }
   }
 
+  // 4. Process queue to see if there are pending chats for this department
+  const { processQueue } = await import('@/actions/queue-actions')
+  await processQueue(ctx.orgId, conv.department_id || null)
+
   revalidatePath('/dashboard/chat')
   return ok(undefined)
 }
@@ -130,6 +134,25 @@ export async function transferConversationAction(
   await (admin as any)
     .from('conversations')
     .update({ assigned_to: toUserId })
+    .eq('id', conversationId)
+
+  revalidatePath('/dashboard/chat')
+  return ok(undefined)
+}
+
+// ─── TAKE CONVERSATION (ASSIGN TO SELF) ────────────────────────────────────────
+
+export async function takeConversationAction(
+  conversationId: string
+): Promise<ActionResult<void>> {
+  const ctx = await getUserAndOrg()
+  if (!ctx || !ctx.orgId) return err('No autorizado')
+
+  const admin = createAdminClient()
+
+  await (admin as any)
+    .from('conversations')
+    .update({ assigned_to: ctx.user.id, status: 'open' })
     .eq('id', conversationId)
 
   revalidatePath('/dashboard/chat')
@@ -300,6 +323,14 @@ export async function reassignConversationAction(conversationId: string, departm
       .single()
 
     if (error) return err(error.message)
+
+    // Trigger queue processing if assigned to a department without a specific user
+    if (departmentId !== undefined && assignedToUserId === null) {
+      const { processQueue } = await import('@/actions/queue-actions')
+      // org_id should be in data.org_id
+      await processQueue((data as any).org_id, departmentId)
+    }
+
     return ok(data)
   } catch (e: any) {
     return err(e.message)

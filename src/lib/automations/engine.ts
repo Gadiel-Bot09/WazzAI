@@ -243,18 +243,23 @@ async function executeFlowStep(
     } else if (actionType === 'handoff') {
       const handoffMsg = currentNode.data.content || 'Serás transferido a un asesor en breve...'
       await evolutionClient.sendTyping(instanceId, phone, calcTypingMs(handoffMsg as string))
-      await saveAndSendAIMessage({
+      
+      // Dynamic assignment logic
+      const { tryAssignConversation } = await import('@/actions/queue-actions')
+      const wasAssigned = await tryAssignConversation(
         conversationId,
         orgId,
-        contactPhone: phone,
-        replyText: handoffMsg as string,
+        currentNode.data.department_id || null,
         instanceId,
-      })
-      const updatePayload: any = { is_ai_active: false, status: 'pending' }
-      if (currentNode.data.department_id) {
-        updatePayload.department_id = currentNode.data.department_id
+        phone
+      )
+
+      if (!wasAssigned) {
+        // If not assigned automatically, it was queued. tryAssignConversation already sent the system message.
+      } else {
+        // Was assigned
       }
-      await (admin as any).from('conversations').update(updatePayload).eq('id', conversationId)
+      
       await endFlow(state.id)
       return true
 

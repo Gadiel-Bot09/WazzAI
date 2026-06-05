@@ -8,6 +8,9 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+import { updateAgentStatusAction } from '@/actions/queue-actions'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 interface ChatLayoutProps {
   initialConversations: any[]
   showAssignedAgent: boolean
@@ -19,6 +22,8 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
   const [conversations, setConversations] = useState<any[]>(initialConversations)
   const [activeTab, setActiveTab] = useState('ai')
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [agentStatus, setAgentStatus] = useState<'online' | 'offline' | 'busy'>(currentUser?.status || 'offline')
+  const [updatingStatus, setUpdatingStatus] = useState(false)
   
   // Create supabase client only once to avoid duplicate channel subscriptions
   const supabaseRef = useRef(createClient())
@@ -27,6 +32,20 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
   // Keep a ref of conversations for use inside realtime callbacks without stale closures
   const convsRef = useRef(conversations)
   convsRef.current = conversations
+
+  const handleStatusChange = async (newStatus: 'online' | 'offline' | 'busy') => {
+    setUpdatingStatus(true)
+    const prevStatus = agentStatus
+    setAgentStatus(newStatus)
+    const res = await updateAgentStatusAction(newStatus)
+    setUpdatingStatus(false)
+    if (!res.success) {
+      toast.error(res.error || 'Error al cambiar estado')
+      setAgentStatus(prevStatus)
+    } else {
+      toast.success(`Estado actualizado a: ${newStatus}`)
+    }
+  }
 
   // Sync when server sends fresh initial data (e.g., from router.refresh())
   useEffect(() => {
@@ -76,10 +95,22 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
 
             // If the active conversation was just handed off (ai→pending), switch tab
             if (updated.is_ai_active === false && updated.status === 'pending') {
-              toast.info('Chat transferido a bandeja de entrada', {
-                description: 'Un flujo ha transferido el chat para atención humana.',
+              toast.info('Chat en cola', {
+                description: 'Un cliente está esperando atención humana.',
                 duration: 5000,
               })
+            }
+            // If conversation was assigned to ME
+            if (updated.assigned_to === currentUser.id && updated.status === 'open') {
+               const wasMineBefore = convsRef.current.find(c => c.id === updated.id)?.assigned_to === currentUser.id
+               if (!wasMineBefore) {
+                 toast.success('Nuevo chat asignado', {
+                   description: 'Se te ha asignado automáticamente un nuevo chat.',
+                   duration: 5000,
+                 })
+                 setActiveTab('mine')
+                 setActiveId(updated.id)
+               }
             }
           } else if (payload.eventType === 'DELETE') {
             setConversations(prev => prev.filter(c => c.id !== (payload.old as any).id))
@@ -91,7 +122,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [orgId]) // eslint-disable-line
+  }, [orgId, currentUser.id]) // eslint-disable-line
 
   const handleDelete = async (id: string) => {
     setConversations(prev => prev.filter(c => c.id !== id))
@@ -159,8 +190,36 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
     <div className="flex w-full h-full">
       {/* Sidebar */}
       <div className={`w-full md:w-80 lg:w-96 flex-shrink-0 border-r bg-white dark:bg-background ${activeId ? 'hidden md:flex flex-col' : 'flex flex-col'}`}>
-        <div className="p-4 border-b h-[68px] flex flex-col justify-center shadow-sm z-10">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="px-4 py-3 border-b flex flex-col gap-2 shadow-sm z-10">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Mensajes</h2>
+            <Select disabled={updatingStatus} value={agentStatus} onValueChange={(val: any) => handleStatusChange(val)}>
+              <SelectTrigger className="w-[130px] h-8 text-xs">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="online">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    Conectado
+                  </div>
+                </SelectItem>
+                <SelectItem value="busy">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                    Ocupado
+                  </div>
+                </SelectItem>
+                <SelectItem value="offline">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                    Desconectado
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-1">
             <TabsList className="grid w-full grid-cols-4 h-9">
               <TabsTrigger value="mine" className="text-xs gap-1">
                 Míos

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Send, Loader2, Phone, Image as ImageIcon, Bot, Lock, Smile, Paperclip, X } from 'lucide-react'
 import { getMessagesAction, sendChatMessageAction } from '@/actions/chat'
+import { takeConversationAction } from '@/actions/conversation-actions'
 import { toggleConversationAIAction } from '@/actions/ai'
 import { Switch } from '@/components/ui/switch'
 import { NativeEmojiPicker } from './native-emoji-picker'
@@ -52,7 +53,19 @@ export function ChatWindow({
   const [showCannedPicker, setShowCannedPicker] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  const [takingChat, setTakingChat] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleTakeChat = async () => {
+    setTakingChat(true)
+    const res = await takeConversationAction(conversationId)
+    setTakingChat(false)
+    if (!res.success) {
+      toast.error(res.error || 'Error al tomar el chat')
+    } else {
+      toast.success('Chat asignado exitosamente')
+    }
+  }
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -248,6 +261,11 @@ export function ChatWindow({
           </div>
         </div>
         <div className="flex items-center gap-4">
+          {!assignedUser && !isClosed && (
+            <Button size="sm" onClick={handleTakeChat} disabled={takingChat} variant="default" className="h-8">
+              Tomar Chat
+            </Button>
+          )}
           {/* Agent Display */}
           {showAssignedAgent && assignedUser && (
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-full border border-primary/10">
