@@ -180,8 +180,8 @@ export class EvolutionClient {
   }
 
   /**
-   * Envia un mensaje de tipo Media (Imagen/Audio/Video) a un número.
-   * Para documentos, usa sendDocument que tiene un endpoint diferente en Evolution v2.
+   * Envia un mensaje de tipo Media (Imagen/Audio/Video/Documento) a un número.
+   * Usa siempre /message/sendMedia con mediatype apropiado.
    */
   async sendMedia(
     instanceId: string,
@@ -191,67 +191,43 @@ export class EvolutionClient {
     caption?: string,
   ): Promise<any> {
     const instanceName = this.getInstanceName(instanceId)
+    const urlParts = mediaUrl.split('/')
+    const fileName = decodeURIComponent(urlParts[urlParts.length - 1] || 'archivo')
 
-    if (mediaType === 'document') {
-      // Evolution API v2 usa /message/sendDocument para archivos adjuntos
-      const urlParts = mediaUrl.split('/')
-      const fileName = urlParts[urlParts.length - 1] || 'documento.pdf'
-
-      const response = await fetch(`${this.baseUrl}/message/sendDocument/${instanceName}`, {
-        method: 'POST',
-        headers: this.headers,
-        body: JSON.stringify({
-          number: phone,
-          media: mediaUrl,
-          fileName,
-          caption: caption || '',
-          delay: 1200,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.text()
-        console.error('[Evolution] sendDocument error:', error)
-        // Fallback: intenta como media normal
-        return this._sendMediaFallback(instanceName, phone, mediaUrl, mediaType, caption)
-      }
-
-      return response.json()
+    const mediaMessage: Record<string, any> = {
+      mediatype: mediaType,
+      caption: caption || '',
+      media: mediaUrl,
     }
 
-    return this._sendMediaFallback(instanceName, phone, mediaUrl, mediaType, caption)
-  }
+    // Para documentos, añadir el nombre del archivo
+    if (mediaType === 'document' || mediaType === 'audio') {
+      mediaMessage.fileName = fileName
+    }
 
-  /** Internal: send via /message/sendMedia (images, audio, video) */
-  private async _sendMediaFallback(
-    instanceName: string,
-    phone: string,
-    mediaUrl: string,
-    mediaType: 'image' | 'audio' | 'video' | 'document',
-    caption?: string,
-  ): Promise<any> {
+    const body = JSON.stringify({
+      number: phone,
+      options: { delay: 1200 },
+      mediaMessage,
+    })
+
+    console.log(`[Evolution] sendMedia [${mediaType}] to ${phone}:`, body)
+
     const response = await fetch(`${this.baseUrl}/message/sendMedia/${instanceName}`, {
       method: 'POST',
       headers: this.headers,
-      body: JSON.stringify({
-        number: phone,
-        mediaMessage: {
-          mediatype: mediaType,
-          caption: caption || '',
-          media: mediaUrl,
-          fileName: mediaUrl.split('/').pop() || 'archivo',
-        },
-        delay: 1200,
-      }),
+      body,
     })
 
     if (!response.ok) {
       const error = await response.text()
-      throw new Error(`Error sending media message [${mediaType}]: ${error}`)
+      console.error(`[Evolution] sendMedia [${mediaType}] error ${response.status}:`, error)
+      throw new Error(`Error sending media [${mediaType}]: ${error}`)
     }
 
     return response.json()
   }
+
 
   /**
    * Cierra sesión (desconecta) la instancia
