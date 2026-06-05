@@ -25,10 +25,10 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
   const convsRef = useRef(conversations)
   convsRef.current = conversations
 
-  // Sync when server sends fresh initial data (only on first mount)
+  // Sync when server sends fresh initial data (e.g., from router.refresh())
   useEffect(() => {
     setConversations(initialConversations)
-  }, []) // eslint-disable-line
+  }, [initialConversations])
 
   // ── Supabase Realtime: subscribe directly to conversation changes ──────────
   useEffect(() => {

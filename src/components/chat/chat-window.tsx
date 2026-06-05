@@ -113,6 +113,18 @@ export function ChatWindow({
     }
   }, [conversationId])
 
+  // Fallback: Listen for realtime new message events from the global listener
+  useEffect(() => {
+    function handleNewMessage(e: Event) {
+      const event = e as CustomEvent
+      if (event.detail?.conversationId === conversationId) {
+        fetchMessages()
+      }
+    }
+    window.addEventListener(REALTIME_NEW_MESSAGE_EVENT, handleNewMessage)
+    return () => window.removeEventListener(REALTIME_NEW_MESSAGE_EVENT, handleNewMessage)
+  }, [conversationId, fetchMessages])
+
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
