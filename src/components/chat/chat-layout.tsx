@@ -19,7 +19,10 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
   const [conversations, setConversations] = useState<any[]>(initialConversations)
   const [activeTab, setActiveTab] = useState('ai')
   const [activeId, setActiveId] = useState<string | null>(null)
-  const supabase = createClient()
+  
+  // Create supabase client only once to avoid duplicate channel subscriptions
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
   
   // Keep a ref of conversations for use inside realtime callbacks without stale closures
   const convsRef = useRef(conversations)

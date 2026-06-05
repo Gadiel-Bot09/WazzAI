@@ -85,7 +85,7 @@ export function ChatWindow({
 
     const supabase = createClient()
     const channel = supabase
-      .channel(`chat-window-msgs-${conversationId}`)
+      .channel(`chat-msgs-${conversationId}-${Date.now()}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
@@ -106,7 +106,9 @@ export function ChatWindow({
           setMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m))
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log(`[ChatWindow] Realtime channel status: ${status} for conv ${conversationId}`)
+      })
 
     return () => {
       supabase.removeChannel(channel)

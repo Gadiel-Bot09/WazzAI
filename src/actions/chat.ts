@@ -116,8 +116,14 @@ export async function sendChatMessageAction(
     if (mediaUrl && mediaType?.startsWith('image/')) {
       // Send as image via Evolution sendMedia
       await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'image', text || undefined)
-    } else if (mediaUrl && mediaType?.startsWith('application/')) {
-      // Send document
+    } else if (mediaUrl && mediaType?.startsWith('video/')) {
+      // Send as video
+      await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'video', text || undefined)
+    } else if (mediaUrl && mediaType?.startsWith('audio/')) {
+      // Send as audio
+      await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'audio', text || undefined)
+    } else if (mediaUrl) {
+      // Everything else: PDFs, Word, Excel, ZIP, etc. → document
       await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'document', text || undefined)
     } else {
       // Send plain text (include a note if there's media we can't type-classify)
