@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { EvolutionClient } from '@/lib/evolution/client'
-import { saveAndSendAIMessage } from '@/lib/automations/engine' // wait, we can't import engine.ts easily here, it might cause circular deps. Let's just use raw EvolutionClient and insert.
+// Removed unused import
 
 // Helper to send a system text message
 async function sendSystemMessage(
@@ -29,10 +29,7 @@ async function sendSystemMessage(
   if (!instance) return
 
   // Send via Evolution API
-  const evolution = new EvolutionClient({
-    apiUrl: process.env.EVOLUTION_API_URL!,
-    apiKey: process.env.EVOLUTION_API_KEY!,
-  })
+  const evolution = new EvolutionClient()
 
   try {
     await evolution.sendText(instance.name, phone, text)
