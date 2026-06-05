@@ -44,7 +44,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
             // New conversation created (e.g. by a flow/webhook)
             // We need to fetch the full conversation with contact info since realtime
             // payloads don't include joined data
-            const { data: fullConv } = await supabase
+            const { data } = await supabase
               .from('conversations')
               .select(`
                 id, is_ai_active, last_message_at, last_message_preview,
@@ -54,6 +54,8 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
               `)
               .eq('id', (payload.new as any).id)
               .single()
+
+            const fullConv = data as any
 
             if (fullConv) {
               setConversations((prev: any[]) => {
