@@ -136,6 +136,16 @@ export async function sendChatMessageAction(
     const admin = createAdminClient()
     const now = new Date().toISOString()
     
+    // Derive the correct message_type enum value accepted by the DB
+    // Valid values: 'text' | 'image' | 'document' | 'audio' | 'video'
+    let dbMessageType = 'text'
+    if (mediaUrl && mediaType) {
+      if (mediaType.startsWith('image/')) dbMessageType = 'image'
+      else if (mediaType.startsWith('video/')) dbMessageType = 'video'
+      else if (mediaType.startsWith('audio/')) dbMessageType = 'audio'
+      else dbMessageType = 'document' // PDF, Word, Excel, ZIP, etc.
+    }
+
     // Build the insert payload
     const msgPayload: Record<string, any> = {
       conversation_id: conversationId,
@@ -144,7 +154,7 @@ export async function sendChatMessageAction(
       direction: 'outbound',
       content: text || '',
       status: 'sent',
-      message_type: mediaUrl ? 'media' : 'text',
+      message_type: dbMessageType,
       sent_at: now,
     }
 

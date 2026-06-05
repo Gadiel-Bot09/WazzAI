@@ -181,7 +181,7 @@ export class EvolutionClient {
 
   /**
    * Envia un mensaje de tipo Media (Imagen/Audio/Video/Documento) a un número.
-   * Intenta primero el formato "flat" (v2), luego el formato "nested" (v1) como fallback.
+   * Usa el formato flat confirmado con esta versión de Evolution API.
    */
   async sendMedia(
     instanceId: string,
@@ -194,56 +194,33 @@ export class EvolutionClient {
     const urlParts = mediaUrl.split('/')
     const fileName = decodeURIComponent(urlParts[urlParts.length - 1] || 'archivo')
 
-    // ── Formato flat / top-level (Evolution API v2) ──────────────────────────
-    const flatBody = JSON.stringify({
+    // Formato flat confirmado con esta versión de Evolution API
+    const body = JSON.stringify({
       number: phone,
-      mediatype: mediaType,   // ← top-level
+      mediatype: mediaType,
       media: mediaUrl,
       caption: caption || '',
       fileName,
     })
 
-    console.log(`[Evolution] sendMedia [${mediaType}] flat payload:`, flatBody)
+    console.log(`[Evolution] sendMedia [${mediaType}]:`, body)
 
-    const flatRes = await fetch(`${this.baseUrl}/message/sendMedia/${instanceName}`, {
+    const response = await fetch(`${this.baseUrl}/message/sendMedia/${instanceName}`, {
       method: 'POST',
       headers: this.headers,
-      body: flatBody,
+      body,
     })
 
-    if (flatRes.ok) return flatRes.json()
-
-    const flatErr = await flatRes.text()
-    console.warn(`[Evolution] sendMedia flat format failed (${flatRes.status}): ${flatErr}. Trying nested format...`)
-
-    // ── Fallback: formato anidado / nested (Evolution API v1) ────────────────
-    const nestedBody = JSON.stringify({
-      number: phone,
-      options: { delay: 1200 },
-      mediaMessage: {
-        mediatype: mediaType,
-        caption: caption || '',
-        media: mediaUrl,
-        fileName,
-      },
-    })
-
-    console.log(`[Evolution] sendMedia [${mediaType}] nested payload:`, nestedBody)
-
-    const nestedRes = await fetch(`${this.baseUrl}/message/sendMedia/${instanceName}`, {
-      method: 'POST',
-      headers: this.headers,
-      body: nestedBody,
-    })
-
-    if (!nestedRes.ok) {
-      const nestedErr = await nestedRes.text()
-      console.error(`[Evolution] sendMedia nested format also failed (${nestedRes.status}):`, nestedErr)
-      throw new Error(`Error sending media [${mediaType}]: ${nestedErr}`)
+    if (!response.ok) {
+      const error = await response.text()
+      console.error(`[Evolution] sendMedia [${mediaType}] error ${response.status}:`, error)
+      throw new Error(`Error sending media [${mediaType}]: ${error}`)
     }
 
-    return nestedRes.json()
+    return response.json()
   }
+
+
 
 
   /**
