@@ -187,8 +187,12 @@ export async function updateAgentStatusAction(newStatus: 'online' | 'offline' | 
   const profile = profileData as any
   if (!profile?.org_id) return { success: false, error: 'Organización no encontrada' }
 
+  // Use admin client to bypass RLS (only admins can update team_members by default)
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const adminClient = createAdminClient()
+
   // Update status in team_members
-  const { error } = await (supabase as any)
+  const { error } = await (adminClient as any)
     .from('team_members')
     .update({ status: newStatus })
     .eq('user_id', user.id)
