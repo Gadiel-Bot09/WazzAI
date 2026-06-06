@@ -120,7 +120,7 @@ export async function tryAssignConversation(conversationId: string, orgId: strin
 }
 
 /**
- * Checks the queue and assigns the oldest pending conversation to the first available agent.
+ * Checks the queue and assigns pending conversations to available agents.
  * Run this when an agent closes a chat or goes online.
  */
 export async function processQueue(orgId: string, departmentId: string | null = null) {
@@ -130,14 +130,14 @@ export async function processQueue(orgId: string, departmentId: string | null = 
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Find oldest pending chat
+  // Find oldest pending chats (up to 20 at a time to avoid heavy loads)
   let query = adminClient
     .from('conversations')
     .select('id, instance_id, contact_id, department_id, contacts!inner(phone_number)')
     .eq('org_id', orgId)
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
-    .limit(1)
+    .limit(20)
 
   if (departmentId) {
     query = query.eq('department_id', departmentId)
@@ -147,27 +147,29 @@ export async function processQueue(orgId: string, departmentId: string | null = 
 
   if (!pendingChats || pendingChats.length === 0) return
 
-  const chatToAssign = pendingChats[0]
-  const phone = (chatToAssign.contacts as any).phone_number
+  for (const chatToAssign of pendingChats) {
+    const phone = (chatToAssign.contacts as any).phone_number
 
-  // Try to assign
-  const agent = await findAvailableAgent(adminClient, orgId, chatToAssign.department_id)
+    // Try to assign
+    const agent = await findAvailableAgent(adminClient, orgId, chatToAssign.department_id)
 
-  if (agent) {
-    await adminClient.from('conversations').update({
-      assigned_to: agent.userId,
-      status: 'open',
-      is_ai_active: false
-    }).eq('id', chatToAssign.id)
+    if (agent) {
+      await adminClient.from('conversations').update({
+        assigned_to: agent.userId,
+        status: 'open',
+        is_ai_active: false
+      }).eq('id', chatToAssign.id)
 
-    await sendSystemMessage(
-      adminClient, 
-      chatToAssign.id, 
-      orgId, 
-      chatToAssign.instance_id, 
-      phone, 
-      `¡Gracias por tu paciencia! El agente ${agent.name} te atenderá ahora.`
-    )
+      await sendSystemMessage(
+        adminClient, 
+        chatToAssign.id, 
+        orgId, 
+        chatToAssign.instance_id, 
+        phone, 
+        `¡Gracias por tu paciencia! El agente ${agent.name} te atenderá ahora.`
+      )
+    }
+    // If no agent found, leave it in pending queue and try the next one (might be a different department)
   }
 }
 
@@ -213,8 +215,8 @@ export async function updateAgentStatusAction(newStatus: 'online' | 'offline' | 
       .single()
       
     const teamMember = teamData as any
-    // Call process queue in the background (no await needed for UI response)
-    processQueue(profile.org_id, teamMember?.department_id || null).catch(console.error)
+    // MUST AWAIT processQueue so Next.js server actions don't kill the background task!
+    await processQueue(profile.org_id, teamMember?.department_id || null)
   }
 
   return { success: true }
