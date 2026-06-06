@@ -140,7 +140,8 @@ export async function processQueue(orgId: string, departmentId: string | null = 
     .limit(20)
 
   if (departmentId) {
-    query = query.eq('department_id', departmentId)
+    // If a department is specified, pull chats for this department OR generic chats (no department)
+    query = query.or(`department_id.eq.${departmentId},department_id.is.null`)
   }
 
   const { data: pendingChats } = await query
