@@ -16,8 +16,8 @@ import {
   Users,
   MessageSquareText,
   Star,
-  Workflow,
   Building,
+  FileText,
 } from 'lucide-react'
 import { Logo } from '@/components/layout/logo'
 
@@ -51,6 +51,11 @@ const navItems = [
     label: 'Analíticas',
     href: '/dashboard/analytics',
     icon: BarChart3,
+  },
+  {
+    label: 'Reportes',
+    href: '/dashboard/reports',
+    icon: FileText,
   },
   {
     label: 'Encuestas',
