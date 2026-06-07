@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invitación a WazzAI</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f3f4f6;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+    }
+    .header {
+      background-color: #10b981; /* Verde WazzAI */
+      padding: 30px 20px;
+      text-align: center;
+    }
+    .header h1 {
+      color: #ffffff;
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .content {
+      padding: 40px 30px;
+      color: #374151;
+      text-align: center;
+    }
+    .content p {
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #10b981;
+      color: #ffffff;
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+    }
+    .footer {
+      background-color: #f9fafb;
+      padding: 20px;
+      text-align: center;
+      border-top: 1px solid #e5e7eb;
+      color: #6b7280;
+      font-size: 14px;
+    }
+    .link-fallback {
+      font-size: 12px;
+      color: #9ca3af;
+      word-break: break-all;
+      margin-top: 20px;
+      text-align: left;
+      background-color: #f3f4f6;
+      padding: 12px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Bienvenido a WazzAI 👋</h1>
+    </div>
+    <div class="content">
+      <p>Has sido invitado(a) a unirte a una organización en <strong>WazzAI</strong> para empezar a gestionar chats y colaborar con el equipo.</p>
+      
+      <p>Para aceptar esta invitación y configurar tu contraseña, simplemente haz clic en el siguiente botón:</p>
+      
+      <a href="{{ .ConfirmationURL }}" class="btn">Aceptar Invitación</a>
+      
+      <p>Si el botón no funciona, también puedes copiar y pegar este enlace en tu navegador:</p>
+      
+      <div class="link-fallback">
+        {{ .ConfirmationURL }}
+      </div>
+    </div>
+    <div class="footer">
+      <p>Este es un correo automático, por favor no respondas a esta dirección.</p>
+      <p>&copy; 2026 WazzAI. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>
