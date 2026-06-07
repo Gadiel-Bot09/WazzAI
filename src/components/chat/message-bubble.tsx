@@ -10,6 +10,7 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isOutbound = message.direction === 'outbound' || message.direction === 'ai'
   const isAI = message.direction === 'ai'
+  const isInternal = message.is_internal_note === true
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   
   return (
@@ -34,12 +35,19 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       <div className={`flex w-full mb-3 ${isOutbound ? 'justify-end' : 'justify-start'}`}>
         <div 
           className={`max-w-[85%] md:max-w-[70%] rounded-xl px-2.5 py-1.5 flex flex-col relative shadow-sm ${
-            isOutbound 
-              ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] rounded-tr-none' 
-              : 'bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] rounded-tl-none'
+            isInternal 
+              ? 'bg-[#dcf8c6] dark:bg-[#1f2c23] border border-[#a3e68c] dark:border-[#2e4235] text-[#111b21] dark:text-[#e9edef] rounded-tr-none'
+              : isOutbound 
+                ? 'bg-[#e2f7cb] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] rounded-tr-none' 
+                : 'bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] rounded-tl-none'
           }`}
         >
-          {isAI && (
+          {isInternal && (
+            <div className="flex items-center gap-1 text-[10px] opacity-80 mb-1 font-bold text-emerald-700 dark:text-emerald-400 border-b border-emerald-500/20 pb-0.5">
+              <FileText className="w-3 h-3" /> Nota Interna
+            </div>
+          )}
+          {isAI && !isInternal && (
             <div className="flex items-center gap-1 text-[10px] opacity-80 mb-1 font-medium text-emerald-700 dark:text-emerald-400">
               <Bot className="w-3 h-3" /> Respuesta de IA
             </div>

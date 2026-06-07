@@ -54,6 +54,7 @@ export function ChatWindow({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [takingChat, setTakingChat] = useState(false)
+  const [isInternalNote, setIsInternalNote] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleTakeChat = async () => {
@@ -206,14 +207,15 @@ export function ChatWindow({
       id: tempId,
       content: textToSend,
       direction: 'outbound',
-      status: 'sending',
+      status: isInternalNote ? 'delivered' : 'sending',
       sent_at: new Date().toISOString(),
       media_url: mediaUrl,
-      media_type: mediaType
+      media_type: mediaType,
+      is_internal_note: isInternalNote
     }])
     scrollToBottom()
 
-    const res = await sendChatMessageAction(conversationId, textToSend, mediaUrl, mediaType)
+    const res = await sendChatMessageAction(conversationId, textToSend, mediaUrl, mediaType, isInternalNote)
 
     if (!res.success) {
       console.error(res.error)
@@ -234,7 +236,13 @@ export function ChatWindow({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0])
+      const selectedFile = e.target.files[0]
+      if (isInternalNote && selectedFile.type.startsWith('video/')) {
+        toast.error('No se pueden adjuntar videos en notas internas')
+        e.target.value = ''
+        return
+      }
+      setFile(selectedFile)
     }
   }
 
@@ -415,7 +423,7 @@ export function ChatWindow({
 
             <form onSubmit={handleSend} className="flex items-end gap-2 w-full">
               <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-              <div className="flex items-center gap-1 shrink-0 text-muted-foreground">
+              <div className="flex items-center gap-1 shrink-0 text-muted-foreground z-10">
                 <Button type="button" variant="ghost" size="icon" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="rounded-full hover:bg-black/5 dark:hover:bg-white/5">
                   <Smile className="w-6 h-6" />
                 </Button>
@@ -424,31 +432,61 @@ export function ChatWindow({
                 </Button>
               </div>
 
-              <div className="flex-1 relative bg-white dark:bg-[#2a3942] rounded-3xl flex items-center border border-border/50 shadow-sm overflow-visible px-4 py-2">
-                {showCannedPicker && (
-                  <div className="absolute bottom-full left-0 w-full mb-2 z-50">
-                    <CannedMessagePicker
-                      query={inputText}
-                      onSelect={text => {
-                        setInputText(text)
+              <div className="flex-1 relative flex flex-col items-stretch">
+                {/* Mode Selector */}
+                <div className="flex items-center gap-1 absolute -top-8 left-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsInternalNote(false)}
+                    className={`px-3 py-1 text-xs font-medium rounded-t-lg transition-colors ${
+                      !isInternalNote 
+                        ? 'bg-white dark:bg-[#2a3942] text-foreground border-t border-l border-r border-border/50' 
+                        : 'bg-transparent text-muted-foreground hover:bg-black/5'
+                    }`}
+                  >
+                    Respuesta
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsInternalNote(true)}
+                    className={`px-3 py-1 text-xs font-medium rounded-t-lg transition-colors ${
+                      isInternalNote 
+                        ? 'bg-[#dcf8c6]/50 dark:bg-[#1f2c23] text-foreground border-t border-l border-r border-border/50' 
+                        : 'bg-transparent text-muted-foreground hover:bg-black/5'
+                    }`}
+                  >
+                    Nota Interna
+                  </button>
+                </div>
+
+                <div className={`flex-1 relative rounded-3xl rounded-tl-none flex items-center border border-border/50 shadow-sm overflow-visible px-4 py-2 transition-colors ${
+                  isInternalNote ? 'bg-[#dcf8c6] dark:bg-[#1f2c23]' : 'bg-white dark:bg-[#2a3942]'
+                }`}>
+                  {showCannedPicker && (
+                    <div className="absolute bottom-full left-0 w-full mb-2 z-50">
+                      <CannedMessagePicker
+                        query={inputText}
+                        onSelect={text => {
+                          setInputText(text)
+                          setShowCannedPicker(false)
+                        }}
+                        onClose={() => setShowCannedPicker(false)}
+                      />
+                    </div>
+                  )}
+                  <Input
+                    value={inputText}
+                    onChange={handleInputChange}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') {
                         setShowCannedPicker(false)
-                      }}
-                      onClose={() => setShowCannedPicker(false)}
-                    />
-                  </div>
-                )}
-                <Input
-                  value={inputText}
-                  onChange={handleInputChange}
-                  onKeyDown={e => {
-                    if (e.key === 'Escape') {
-                      setShowCannedPicker(false)
-                      setShowEmojiPicker(false)
-                    }
-                  }}
-                  placeholder="Escribe un mensaje… (/ para predefinidos)"
-                  className="w-full bg-transparent border-0 focus-visible:ring-0 shadow-none px-0 py-0 h-8 text-[15px]"
-                />
+                        setShowEmojiPicker(false)
+                      }
+                    }}
+                    placeholder={isInternalNote ? "Escribe una nota privada (no la verá el cliente)…" : "Escribe un mensaje… (/ para predefinidos)"}
+                    className="w-full bg-transparent border-0 focus-visible:ring-0 shadow-none px-0 py-0 h-8 text-[15px] placeholder:text-muted-foreground/70"
+                  />
+                </div>
               </div>
 
               <Button

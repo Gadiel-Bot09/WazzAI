@@ -70,7 +70,8 @@ export async function sendChatMessageAction(
   conversationId: string, 
   text: string,
   mediaUrl?: string,
-  mediaType?: string
+  mediaType?: string,
+  isInternalNote: boolean = false
 ): Promise<ActionResult<void>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -104,32 +105,34 @@ export async function sendChatMessageAction(
   if (!contact) return err('Contacto no encontrado')
 
   try {
-    // 1. Send via Evolution API
-    if (!conv.instance_id) {
-      console.error('[sendChatMessage] No instance_id on conversation:', conversationId)
-      return err('Esta conversación no tiene una instancia de WhatsApp asignada')
-    }
+    // 1. Send via Evolution API (ONLY if it's not an internal note)
+    if (!isInternalNote) {
+      if (!conv.instance_id) {
+        console.error('[sendChatMessage] No instance_id on conversation:', conversationId)
+        return err('Esta conversación no tiene una instancia de WhatsApp asignada')
+      }
 
-    const finalInstanceId = conv.instance_id
-    console.log(`[sendChatMessage] Sending via instance ${finalInstanceId} to ${contact.phone_number}`)
+      const finalInstanceId = conv.instance_id
+      console.log(`[sendChatMessage] Sending via instance ${finalInstanceId} to ${contact.phone_number}`)
 
-    if (mediaUrl && mediaType?.startsWith('image/')) {
-      // Send as image via Evolution sendMedia
-      await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'image', text || undefined)
-    } else if (mediaUrl && mediaType?.startsWith('video/')) {
-      // Send as video
-      await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'video', text || undefined)
-    } else if (mediaUrl && mediaType?.startsWith('audio/')) {
-      // Send as audio
-      await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'audio', text || undefined)
-    } else if (mediaUrl) {
-      // Everything else: PDFs, Word, Excel, ZIP, etc. → document
-      await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'document', text || undefined)
-    } else {
-      // Send plain text (include a note if there's media we can't type-classify)
-      const sendText = text || (mediaUrl ? '📎 Archivo adjunto' : '')
-      if (!sendText) return err('No hay contenido para enviar')
-      await evolutionClient.sendTextMessage(finalInstanceId, contact.phone_number, sendText)
+      if (mediaUrl && mediaType?.startsWith('image/')) {
+        // Send as image via Evolution sendMedia
+        await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'image', text || undefined)
+      } else if (mediaUrl && mediaType?.startsWith('video/')) {
+        // Send as video
+        await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'video', text || undefined)
+      } else if (mediaUrl && mediaType?.startsWith('audio/')) {
+        // Send as audio
+        await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'audio', text || undefined)
+      } else if (mediaUrl) {
+        // Everything else: PDFs, Word, Excel, ZIP, etc. → document
+        await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'document', text || undefined)
+      } else {
+        // Send plain text (include a note if there's media we can't type-classify)
+        const sendText = text || (mediaUrl ? '📎 Archivo adjunto' : '')
+        if (!sendText) return err('No hay contenido para enviar')
+        await evolutionClient.sendTextMessage(finalInstanceId, contact.phone_number, sendText)
+      }
     }
 
     // 2. Guardar el mensaje en Supabase
@@ -150,12 +153,17 @@ export async function sendChatMessageAction(
     const msgPayload: Record<string, any> = {
       conversation_id: conversationId,
       org_id: (profile as any).org_id,
-      sender_id: user.id,
+      sender_id: user.id, // el humano logueado
       direction: 'outbound',
-      content: text || '',
-      status: 'sent',
       message_type: dbMessageType,
+      content: text,
+      media_url: mediaUrl,
+      media_mime_type: mediaType,
+      status: isInternalNote ? 'delivered' : 'sent', // Internal notes don't need delivery confirmation
+      is_internal_note: isInternalNote,
       sent_at: now,
+      delivered_at: isInternalNote ? now : null,
+      read_at: isInternalNote ? now : null
     }
 
     // Add media fields only when present (in case columns don't exist yet)
