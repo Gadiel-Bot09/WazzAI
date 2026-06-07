@@ -16,6 +16,7 @@ import {
   Users,
   MessageSquareText,
   Star,
+  Workflow,
   Building,
   FileText,
 } from 'lucide-react'
