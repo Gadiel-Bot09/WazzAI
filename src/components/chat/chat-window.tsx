@@ -360,7 +360,34 @@ export function ChatWindow({
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white dark:bg-muted/30 border-t">
+      <div className="p-4 bg-white dark:bg-muted/30 border-t flex flex-col gap-2 relative">
+        {!isClosed && !aiActive && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setIsInternalNote(false)}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${
+                !isInternalNote 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              Responder al Cliente
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsInternalNote(true)}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${
+                isInternalNote 
+                  ? 'bg-emerald-500 text-white shadow-sm' 
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              Añadir Nota Interna
+            </button>
+          </div>
+        )}
+
         {isClosed ? (
           <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground text-sm">
             <Lock className="w-4 h-4" />
@@ -433,34 +460,8 @@ export function ChatWindow({
               </div>
 
               <div className="flex-1 relative flex flex-col items-stretch">
-                {/* Mode Selector */}
-                <div className="flex items-center gap-1 absolute -top-8 left-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsInternalNote(false)}
-                    className={`px-3 py-1 text-xs font-medium rounded-t-lg transition-colors ${
-                      !isInternalNote 
-                        ? 'bg-white dark:bg-[#2a3942] text-foreground border-t border-l border-r border-border/50' 
-                        : 'bg-transparent text-muted-foreground hover:bg-black/5'
-                    }`}
-                  >
-                    Respuesta
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsInternalNote(true)}
-                    className={`px-3 py-1 text-xs font-medium rounded-t-lg transition-colors ${
-                      isInternalNote 
-                        ? 'bg-[#dcf8c6]/50 dark:bg-[#1f2c23] text-foreground border-t border-l border-r border-border/50' 
-                        : 'bg-transparent text-muted-foreground hover:bg-black/5'
-                    }`}
-                  >
-                    Nota Interna
-                  </button>
-                </div>
-
-                <div className={`flex-1 relative rounded-3xl rounded-tl-none flex items-center border border-border/50 shadow-sm overflow-visible px-4 py-2 transition-colors ${
-                  isInternalNote ? 'bg-[#dcf8c6] dark:bg-[#1f2c23]' : 'bg-white dark:bg-[#2a3942]'
+                <div className={`flex-1 relative rounded-3xl flex items-center border shadow-sm overflow-visible px-4 py-2 transition-colors ${
+                  isInternalNote ? 'bg-[#dcf8c6] border-[#8bc34a] dark:bg-[#1f2c23] dark:border-emerald-800' : 'bg-white dark:bg-[#2a3942] border-border/50'
                 }`}>
                   {showCannedPicker && (
                     <div className="absolute bottom-full left-0 w-full mb-2 z-50">
