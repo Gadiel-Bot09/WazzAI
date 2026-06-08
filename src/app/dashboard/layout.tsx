@@ -37,11 +37,12 @@ export default async function DashboardLayout({
 
   if (profile?.org_id) {
     // Get org name
-    const { data: orgData } = await supabase
+    const { data } = await supabase
       .from('organizations')
       .select('name')
       .eq('id', profile.org_id)
       .single()
+    const orgData = data as any
     if (orgData?.name) orgName = orgData.name
 
     // Get permissions
