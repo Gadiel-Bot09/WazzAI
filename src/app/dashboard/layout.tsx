@@ -16,6 +16,7 @@ export default async function DashboardLayout({
   if (!user) {
     redirect('/auth/login')
   }
+  console.log('Fetching layout for user:', user.id)
 
   // Verificar si completó el onboarding
   const adminSupabase = createAdminClient() as any
