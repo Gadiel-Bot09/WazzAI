@@ -20,7 +20,22 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     // Al instanciar el cliente, este lee el fragmento #access_token de la URL (si venimos de una invitación)
     // y lo guarda en la sesión local.
-    createClient().auth.getSession()
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        // Verificar si hay un error en la URL (ej. enlace expirado de Supabase)
+        const hash = window.location.hash
+        if (hash.includes('error_description')) {
+          const params = new URLSearchParams(hash.substring(1))
+          const errDesc = params.get('error_description')
+          if (errDesc?.includes('expired') || errDesc?.includes('invalid')) {
+            setError('El enlace de invitación ha expirado o ya fue utilizado. Pídele al administrador que te envíe una nueva invitación.')
+          } else {
+            setError(`Error de autenticación: ${errDesc}`)
+          }
+        }
+      }
+    })
   }, [])
   
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -46,14 +61,19 @@ export default function ResetPasswordPage() {
     }
     
     const supabase = createClient()
-    const { error } = await supabase.auth.updateUser({ password })
+    const { error: updateError } = await supabase.auth.updateUser({ password })
     
-    if (!error) {
+    if (!updateError) {
       setSuccess(true)
-      // Opcional: Redirigir al inicio después de unos segundos
+      // Redirigir al inicio después de unos segundos
       setTimeout(() => router.push('/dashboard'), 3000)
     } else {
-      setError('Error al restablecer la contraseña. El enlace puede haber expirado o es inválido.')
+      console.error('Update password error:', updateError)
+      if (updateError.message.includes('Auth session missing')) {
+        setError('No tienes una sesión activa. Asegúrate de haber hecho clic en un enlace de invitación reciente y válido.')
+      } else {
+        setError(`Error al restablecer: ${updateError.message}`)
+      }
     }
     
     setIsLoading(false)
@@ -85,6 +105,14 @@ export default function ResetPasswordPage() {
         <p className="text-sm text-muted-foreground">
           Ingresa tu nueva contraseña a continuación
         </p>
+      </div>
+
+      <div className="bg-muted/50 p-4 rounded-md text-sm text-muted-foreground border">
+        <strong>Condiciones de la contraseña:</strong>
+        <ul className="list-disc pl-5 mt-1 space-y-1">
+          <li>Debe tener al menos 6 caracteres de longitud.</li>
+          <li>Se recomienda incluir letras, números y algún símbolo para mayor seguridad.</li>
+        </ul>
       </div>
 
       {error && (
