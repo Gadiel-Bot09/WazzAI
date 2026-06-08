@@ -54,7 +54,11 @@ export default async function DashboardLayout({
       .single()
 
     const teamMember = teamData as any
-    const roleData = teamMember?.roles as any
+    let roleData = teamMember?.roles as any
+    if (Array.isArray(roleData)) {
+      roleData = roleData[0]
+    }
+
     if (!roleData) {
       // Owner or no role assigned
       isOwner = true

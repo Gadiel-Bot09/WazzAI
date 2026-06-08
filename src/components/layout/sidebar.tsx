@@ -129,6 +129,9 @@ export function Sidebar({
     if (href === '/dashboard/kanban') return permissions.can_manage_contacts
     if (href === '/dashboard/whatsapp') return permissions.can_manage_settings
     if (href === '/dashboard/analytics') return permissions.can_view_analytics
+    if (href === '/dashboard/reports') return permissions.can_view_analytics
+    if (href === '/dashboard/analytics/surveys') return permissions.can_view_analytics
+    if (href === '/dashboard/automations') return permissions.can_manage_automations
     if (href === '/dashboard/ai-settings') return permissions.can_manage_settings
     
     // Config items
