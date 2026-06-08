@@ -33,8 +33,18 @@ export default async function DashboardLayout({
   // Fetch permissions for the Sidebar
   let permissions: Record<string, boolean> = {}
   let isOwner = false
+  let orgName = 'WazzAI'
 
   if (profile?.org_id) {
+    // Get org name
+    const { data: orgData } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', profile.org_id)
+      .single()
+    if (orgData?.name) orgName = orgData.name
+
+    // Get permissions
     const { data } = await supabase
       .from('team_members')
       .select('roles(permissions)')
@@ -58,7 +68,7 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {profile?.org_id && <RealtimeListener orgId={profile.org_id} currentUser={profile} />}
-      <Sidebar isPlatformAdmin={isPlatformAdmin} permissions={permissions} isOwner={isOwner} />
+      <Sidebar isPlatformAdmin={isPlatformAdmin} permissions={permissions} isOwner={isOwner} orgName={orgName} />
       <main className="flex-1 flex flex-col min-w-0 bg-muted/10 relative h-screen">
         <SubscriptionGuard>
           {children}

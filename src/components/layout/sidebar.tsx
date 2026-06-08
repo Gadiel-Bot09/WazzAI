@@ -106,11 +106,13 @@ const bottomItems = [
 export function Sidebar({ 
   isPlatformAdmin = false,
   permissions = {},
-  isOwner = false
+  isOwner = false,
+  orgName = 'WazzAI'
 }: { 
   isPlatformAdmin?: boolean,
   permissions?: Record<string, boolean>,
-  isOwner?: boolean
+  isOwner?: boolean,
+  orgName?: string
 }) {
   const pathname = usePathname()
 
@@ -122,15 +124,17 @@ export function Sidebar({
   const canAccess = (href: string) => {
     if (isOwner || permissions.all || isPlatformAdmin) return true
 
-    if (href === '/dashboard/chat') return permissions.chat_view || permissions.chat_view_all
-    if (href === '/dashboard/contacts') return permissions.contacts_view
-    if (href === '/dashboard/kanban') return permissions.contacts_view
-    if (href === '/dashboard/whatsapp') return permissions.settings_manage
-    if (href === '/dashboard/analytics') return permissions.settings_view || permissions.settings_manage
-    if (href === '/dashboard/ai-settings') return permissions.settings_manage
+    if (href === '/dashboard/chat') return permissions.can_reply_chat || permissions.can_view_all_chats
+    if (href === '/dashboard/contacts') return permissions.can_manage_contacts
+    if (href === '/dashboard/kanban') return permissions.can_manage_contacts
+    if (href === '/dashboard/whatsapp') return permissions.can_manage_settings
+    if (href === '/dashboard/analytics') return permissions.can_view_analytics
+    if (href === '/dashboard/ai-settings') return permissions.can_manage_settings
     
     // Config items
-    if (href.startsWith('/dashboard/settings')) return permissions.settings_view || permissions.settings_manage || permissions.roles_manage || permissions.departments_manage
+    if (href.startsWith('/dashboard/settings')) {
+      return permissions.can_manage_settings || permissions.can_manage_team || permissions.can_manage_departments
+    }
 
     // Allow everything else by default or restrict as needed
     return true
@@ -141,12 +145,12 @@ export function Sidebar({
 
   return (
     <aside className="w-64 border-r bg-background h-screen flex flex-col hidden md:flex shadow-sm">
-      {/* Logo */}
+      {/* Logo & Org Name */}
       <div className="h-16 flex items-center border-b px-5 hover:bg-muted/30 transition-colors">
-        <Link href="/dashboard" className="flex items-center gap-3 font-bold text-xl">
+        <Link href="/dashboard" className="flex items-center gap-3 font-bold text-xl truncate">
           <Logo />
-          <span className="text-foreground tracking-tight">
-            WazzAI
+          <span className="text-foreground tracking-tight truncate">
+            {orgName}
           </span>
         </Link>
       </div>
