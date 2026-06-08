@@ -18,7 +18,8 @@ export default async function DashboardLayout({
   }
 
   // Verificar si completó el onboarding
-  const { data: profileData } = await supabase
+  const adminSupabase = createAdminClient() as any
+  const { data: profileData } = await adminSupabase
     .from('users')
     .select('org_id, role, department_id')
     .eq('id', user.id)
@@ -43,7 +44,7 @@ export default async function DashboardLayout({
 
   if (profile?.org_id) {
     // Get org name
-    const { data } = await supabase
+    const { data } = await adminSupabase
       .from('organizations')
       .select('name')
       .eq('id', profile.org_id)
@@ -52,7 +53,6 @@ export default async function DashboardLayout({
     if (orgData?.name) orgName = orgData.name
 
     // Get permissions using admin client to bypass RLS on roles table
-    const adminSupabase = createAdminClient() as any
     const { data: teamData } = await adminSupabase
       .from('team_members')
       .select('roles(permissions)')
