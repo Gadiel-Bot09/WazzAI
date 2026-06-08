@@ -188,7 +188,13 @@ export async function inviteTeamMemberAction(email: string, role_id: string) {
 
     if (!userId) {
       // 2. If not, invite them via Supabase Auth Admin
-      const { data: authData, error: authErr } = await admin.auth.admin.inviteUserByEmail(email)
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const { data: orgData } = await admin.from('organizations').select('name').eq('id', orgId).single()
+      
+      const { data: authData, error: authErr } = await admin.auth.admin.inviteUserByEmail(email, {
+        data: { org_name: orgData?.name || 'WazzAI' },
+        redirectTo: `${appUrl}/auth/callback?next=/auth/reset-password`
+      })
       if (authErr) return err(authErr.message)
       userId = authData.user.id
       const { error: userErr } = await admin.from('users').insert({ 
