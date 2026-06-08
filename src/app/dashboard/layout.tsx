@@ -35,13 +35,14 @@ export default async function DashboardLayout({
   let isOwner = false
 
   if (profile?.org_id) {
-    const { data: teamMember } = await supabase
+    const { data } = await supabase
       .from('team_members')
       .select('roles(permissions)')
       .eq('user_id', user.id)
       .eq('org_id', profile.org_id)
       .single()
 
+    const teamMember = data as any
     const roleData = teamMember?.roles as any
     if (!roleData) {
       // Owner or no role assigned
