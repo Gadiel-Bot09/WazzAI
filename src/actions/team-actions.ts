@@ -191,8 +191,17 @@ export async function inviteTeamMemberAction(email: string, role_id: string) {
       const { data: authData, error: authErr } = await admin.auth.admin.inviteUserByEmail(email)
       if (authErr) return err(authErr.message)
       userId = authData.user.id
-      
-      const { error: userErr } = await admin.from('users').insert({ id: userId, email, full_name: 'Invitado' }).select().maybeSingle()
+      const { error: userErr } = await admin.from('users').insert({ 
+        id: userId, 
+        org_id: orgId,
+        email, 
+        full_name: 'Invitado' 
+      }).select().maybeSingle()
+
+      if (userErr) {
+        console.error('Error insertando usuario:', userErr)
+        return err('Hubo un error al crear el perfil de usuario invitado.')
+      }
     }
 
     // 3. Add to team_members
