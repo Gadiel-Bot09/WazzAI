@@ -165,7 +165,7 @@ export async function removeTeamMemberAction(id: string) {
 
 // Invite is more complex: typically involves auth.admin.inviteUserByEmail 
 // and then creating a team_member record. For now we will just create a placeholder action
-export async function inviteTeamMemberAction(email: string, role_id: string) {
+export async function inviteTeamMemberAction(email: string, role_id: string, full_name: string) {
   try {
     const orgId = await getCurrentOrg()
     const admin = createAdminClient() as any
@@ -192,8 +192,8 @@ export async function inviteTeamMemberAction(email: string, role_id: string) {
       const { data: orgData } = await admin.from('organizations').select('name').eq('id', orgId).single()
       
       const { data: authData, error: authErr } = await admin.auth.admin.inviteUserByEmail(email, {
-        data: { org_name: orgData?.name || 'WazzAI' },
-        redirectTo: `${appUrl}/auth/callback?next=/auth/reset-password`
+        data: { org_name: orgData?.name || 'WazzAI', full_name },
+        redirectTo: `${appUrl}/auth/reset-password`
       })
       if (authErr) return err(authErr.message)
       userId = authData.user.id
@@ -201,7 +201,7 @@ export async function inviteTeamMemberAction(email: string, role_id: string) {
         id: userId, 
         org_id: orgId,
         email, 
-        full_name: 'Invitado' 
+        full_name 
       }).select().maybeSingle()
 
       if (userErr) {
