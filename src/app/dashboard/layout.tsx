@@ -46,14 +46,14 @@ export default async function DashboardLayout({
     if (orgData?.name) orgName = orgData.name
 
     // Get permissions
-    const { data } = await supabase
+    const { data: teamData } = await supabase
       .from('team_members')
       .select('roles(permissions)')
       .eq('user_id', user.id)
       .eq('org_id', profile.org_id)
       .single()
 
-    const teamMember = data as any
+    const teamMember = teamData as any
     const roleData = teamMember?.roles as any
     if (!roleData) {
       // Owner or no role assigned
