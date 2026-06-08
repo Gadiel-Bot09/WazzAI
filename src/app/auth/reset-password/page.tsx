@@ -18,13 +18,26 @@ export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false)
   
   useEffect(() => {
-    // Al instanciar el cliente, este lee el fragmento #access_token de la URL (si venimos de una invitación)
-    // y lo guarda en la sesión local.
     const supabase = createClient()
-    supabase.auth.getSession().then(({ data }) => {
+    
+    const initializeSession = async () => {
+      // 1. Manually parse hash if present (fixes issues with SSR PKCE strictness)
+      const hash = window.location.hash
+      if (hash && hash.includes('access_token')) {
+        const params = new URLSearchParams(hash.substring(1))
+        const access_token = params.get('access_token')
+        const refresh_token = params.get('refresh_token')
+        
+        if (access_token && refresh_token) {
+          await supabase.auth.setSession({ access_token, refresh_token })
+          // Clear hash to prevent leaking tokens
+          window.history.replaceState(null, '', window.location.pathname)
+        }
+      }
+
+      // 2. Check resulting session
+      const { data } = await supabase.auth.getSession()
       if (!data.session) {
-        // Verificar si hay un error en la URL (ej. enlace expirado de Supabase)
-        const hash = window.location.hash
         if (hash.includes('error_description')) {
           const params = new URLSearchParams(hash.substring(1))
           const errDesc = params.get('error_description')
@@ -35,7 +48,9 @@ export default function ResetPasswordPage() {
           }
         }
       }
-    })
+    }
+    
+    initializeSession()
   }, [])
   
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
