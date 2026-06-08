@@ -29,7 +29,21 @@ export default async function DashboardLayout({
   const profile = profileData as any
 
   if (!profile?.org_id) {
-    redirect('/onboarding')
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-red-50 text-red-900 p-4">
+        <h1 className="text-2xl font-bold mb-4">Error Crítico: Perfil no encontrado</h1>
+        <p>No se pudo cargar tu perfil de organización.</p>
+        <p className="mt-2 text-sm opacity-70">
+          User ID: {user?.id}
+        </p>
+        <p className="mt-2 text-sm opacity-70">
+          Error DB: {profileError ? JSON.stringify(profileError) : 'Data es null'}
+        </p>
+        <p className="mt-2 text-sm opacity-70">
+          Rol DB Key: {process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Presente' : 'Ausente'}
+        </p>
+      </div>
+    )
   }
 
   const onboardingCompleted = user.user_metadata?.onboarding_completed === true
