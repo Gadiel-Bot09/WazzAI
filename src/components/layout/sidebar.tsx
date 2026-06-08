@@ -103,12 +103,41 @@ const bottomItems = [
   },
 ]
 
-export function Sidebar({ isPlatformAdmin = false }: { isPlatformAdmin?: boolean }) {
+export function Sidebar({ 
+  isPlatformAdmin = false,
+  permissions = {},
+  isOwner = false
+}: { 
+  isPlatformAdmin?: boolean,
+  permissions?: Record<string, boolean>,
+  isOwner?: boolean
+}) {
   const pathname = usePathname()
 
   function isActive(href: string) {
     return pathname.startsWith(href)
   }
+
+  // Helper to check if a menu item should be shown
+  const canAccess = (href: string) => {
+    if (isOwner || permissions.all || isPlatformAdmin) return true
+
+    if (href === '/dashboard/chat') return permissions.chat_view || permissions.chat_view_all
+    if (href === '/dashboard/contacts') return permissions.contacts_view
+    if (href === '/dashboard/kanban') return permissions.contacts_view
+    if (href === '/dashboard/whatsapp') return permissions.settings_manage
+    if (href === '/dashboard/analytics') return permissions.settings_view || permissions.settings_manage
+    if (href === '/dashboard/ai-settings') return permissions.settings_manage
+    
+    // Config items
+    if (href.startsWith('/dashboard/settings')) return permissions.settings_view || permissions.settings_manage || permissions.roles_manage || permissions.departments_manage
+
+    // Allow everything else by default or restrict as needed
+    return true
+  }
+
+  const filteredNavItems = navItems.filter(item => canAccess(item.href))
+  const filteredBottomItems = bottomItems.filter(item => canAccess(item.href))
 
   return (
     <aside className="w-64 border-r bg-background h-screen flex flex-col hidden md:flex shadow-sm">
@@ -127,7 +156,7 @@ export function Sidebar({ isPlatformAdmin = false }: { isPlatformAdmin?: boolean
         <div className="px-3 mb-2">
           <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-2 mb-1">Principal</p>
           <nav className="grid gap-0.5">
-            {navItems.map(item => {
+            {filteredNavItems.map(item => {
               const active = isActive(item.href)
               return (
                 <Link
@@ -148,22 +177,24 @@ export function Sidebar({ isPlatformAdmin = false }: { isPlatformAdmin?: boolean
           </nav>
         </div>
 
+        {/* Settings & Admin */}
         <div className="mt-auto px-3 pb-2 border-t pt-4">
+          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-2 mb-1">Configuración</p>
           <nav className="grid gap-0.5">
-            {bottomItems.map(item => {
+            {filteredBottomItems.map(item => {
               const active = isActive(item.href)
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all group ${
                     active
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
-                  <item.icon className="h-4 w-4 flex-shrink-0" />
-                  <span>{item.label}</span>
+                  <item.icon className={`h-4 w-4 flex-shrink-0 ${active ? 'text-primary' : ''}`} />
+                  <span className="flex-1">{item.label}</span>
                 </Link>
               )
             })}
