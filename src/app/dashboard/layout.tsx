@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { Sidebar } from '@/components/layout/sidebar'
 import { SubscriptionGuard } from '@/components/layout/subscription-guard'
 import { RealtimeListener } from '@/components/chat/realtime-listener'
@@ -24,6 +25,11 @@ export default async function DashboardLayout({
     .single()
     
   const profile = profileData as any
+
+  if (!profile?.org_id) {
+    redirect('/onboarding')
+  }
+
   const onboardingCompleted = user.user_metadata?.onboarding_completed === true
 
   if (!onboardingCompleted) {
@@ -45,8 +51,9 @@ export default async function DashboardLayout({
     const orgData = data as any
     if (orgData?.name) orgName = orgData.name
 
-    // Get permissions
-    const { data: teamData } = await supabase
+    // Get permissions using admin client to bypass RLS on roles table
+    const adminSupabase = createAdminClient() as any
+    const { data: teamData } = await adminSupabase
       .from('team_members')
       .select('roles(permissions)')
       .eq('user_id', user.id)
