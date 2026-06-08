@@ -28,6 +28,7 @@ import {
 import { suspendOrgAction, reactivateOrgAction, assignPlanToOrgAction, activateSubscriptionAction, updatePlatformSettingsAction, getAllPlansAction } from '@/actions/admin'
 import type { PlatformStats, AdminOrgRow, AdminPlanRow } from '@/actions/admin'
 import { PlanFormDialog } from './plan-form-dialog'
+import { toast } from 'sonner'
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -121,6 +122,9 @@ function OrgTable({ orgs, plans, onRefresh }: { orgs: AdminOrgRow[], plans: Admi
         onRefresh()
         setAssigningPlan(null)
         setSelectedPlan('')
+        toast.success('Plan asignado correctamente')
+      } else {
+        toast.error(res.error || 'Error al asignar el plan')
       }
     })
   }
