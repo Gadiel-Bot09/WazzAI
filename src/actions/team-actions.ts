@@ -45,9 +45,9 @@ export async function createDepartmentAction(payload: { name: string, descriptio
     // Billing Check
     const billingRes = await getBillingInfoAction()
     if (billingRes.success && billingRes.data.limits) {
-      const allowedDepts = billingRes.data.limits.departments || 5
+      const allowedDepts = billingRes.data.limits.departments ?? 0
       const { count } = await admin.from('departments').select('*', { count: 'exact', head: true }).eq('org_id', orgId)
-      if (count !== null && count >= allowedDepts) {
+      if (allowedDepts !== -1 && count !== null && count >= allowedDepts) {
         return err(`Has alcanzado el límite de ${allowedDepts} departamentos para tu plan actual.`)
       }
     }
@@ -173,9 +173,10 @@ export async function inviteTeamMemberAction(email: string, role_id: string) {
     // Billing Check
     const billingRes = await getBillingInfoAction()
     if (billingRes.success && billingRes.data.limits) {
-      const allowedAgents = billingRes.data.limits.operators || 1
-      const { count } = await admin.from('team_members').select('*', { count: 'exact', head: true }).eq('org_id', orgId)
-      if (count !== null && count >= allowedAgents) {
+      const allowedAgents = billingRes.data.limits.operators ?? 0
+      const { count: currentAgents } = await admin.from('team_members').select('*', { count: 'exact', head: true }).eq('org_id', orgId)
+      
+      if (allowedAgents !== -1 && currentAgents !== null && currentAgents >= allowedAgents) {
         return err(`Has alcanzado el límite de ${allowedAgents} agentes para tu plan actual.`)
       }
     }

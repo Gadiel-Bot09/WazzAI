@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ok, err } from '@/lib/utils/server'
 import type { ActionResult } from '@/lib/utils/server'
+import { revalidatePath } from 'next/cache'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,19 +105,22 @@ export async function getAllOrgsAction(): Promise<ActionResult<AdminOrgRow[]>> {
     return err('Error al obtener las organizaciones')
   }
 
-  const rows: AdminOrgRow[] = ((data as any[]) || []).map((org: any) => ({
-    id: org.id,
-    name: org.name,
-    slug: org.slug,
-    is_active: org.is_active,
-    is_suspended: org.is_suspended,
-    suspension_reason: org.suspension_reason,
-    created_at: org.created_at,
-    plan_name: org.subscriptions?.[0]?.plans?.display_name ?? null,
-    subscription_status: org.subscriptions?.[0]?.status ?? null,
-    user_count: org.users?.[0]?.count ?? 0,
-    message_count: org.messages?.[0]?.count ?? 0,
-  }))
+  const rows: AdminOrgRow[] = ((data as any[]) || []).map((org: any) => {
+    const sub = Array.isArray(org.subscriptions) ? org.subscriptions[0] : org.subscriptions
+    return {
+      id: org.id,
+      name: org.name,
+      slug: org.slug,
+      is_active: org.is_active,
+      is_suspended: org.is_suspended,
+      suspension_reason: org.suspension_reason,
+      created_at: org.created_at,
+      plan_name: sub?.plans?.display_name ?? null,
+      subscription_status: sub?.status ?? null,
+      user_count: org.users?.[0]?.count ?? 0,
+      message_count: org.messages?.[0]?.count ?? 0,
+    }
+  })
 
   return ok(rows)
 }
@@ -214,18 +218,26 @@ export async function assignPlanToOrgAction(
 ): Promise<ActionResult<void>> {
   const admin = getAdmin()
 
-  const { data: existing } = await (admin as any)
+  const { data: existing, error: findError } = await (admin as any)
     .from('subscriptions')
     .select('id')
     .eq('org_id', orgId)
-    .single()
+    .maybeSingle()
 
-  if ((existing as any)?.id) {
+  if (findError) {
+    console.error('assignPlanToOrgAction find error:', findError)
+    return err('Error al buscar suscripción existente')
+  }
+
+  if (existing?.id) {
     const { error } = await (admin as any)
       .from('subscriptions')
       .update({ plan_id: planId, status: 'active', updated_at: new Date().toISOString() })
       .eq('org_id', orgId)
-    if (error) return err('Error al actualizar el plan de la organización')
+    if (error) {
+      console.error('assignPlanToOrgAction update error:', error)
+      return err('Error al actualizar el plan de la organización')
+    }
   } else {
     const { error } = await (admin as any)
       .from('subscriptions')
@@ -235,15 +247,23 @@ export async function assignPlanToOrgAction(
         status: 'active',
         billing_cycle: 'monthly',
       })
-    if (error) return err('Error al asignar el plan')
+    if (error) {
+      console.error('assignPlanToOrgAction insert error:', error)
+      return err('Error al asignar el plan')
+    }
   }
 
   // Also update org's plan_id reference
-  await (admin as any)
+  const { error: orgError } = await (admin as any)
     .from('organizations')
     .update({ plan_id: planId, updated_at: new Date().toISOString() })
     .eq('id', orgId)
 
+  if (orgError) {
+    console.error('assignPlanToOrgAction org update error:', orgError)
+  }
+
+  revalidatePath('/dashboard/admin')
   return ok(undefined)
 }
 
