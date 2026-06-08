@@ -2,21 +2,24 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { resetPasswordAction } from '@/actions/auth'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function ResetPasswordPage() {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   
   useEffect(() => {
     // Al instanciar el cliente, este lee el fragmento #access_token de la URL (si venimos de una invitación)
-    // y lo guarda en las cookies para que el Server Action tenga la sesión activa.
+    // y lo guarda en la sesión local.
     createClient().auth.getSession()
   }, [])
   
@@ -30,16 +33,27 @@ export default function ResetPasswordPage() {
     const password = formData.get('password') as string
     const confirm_password = formData.get('confirm_password') as string
     
-    const res = await resetPasswordAction({ password, confirm_password })
+    if (password !== confirm_password) {
+      setFieldErrors({ confirm_password: ['Las contraseñas no coinciden'] })
+      setIsLoading(false)
+      return
+    }
+
+    if (password.length < 6) {
+      setFieldErrors({ password: ['La contraseña debe tener al menos 6 caracteres'] })
+      setIsLoading(false)
+      return
+    }
     
-    if (res.success) {
+    const supabase = createClient()
+    const { error } = await supabase.auth.updateUser({ password })
+    
+    if (!error) {
       setSuccess(true)
+      // Opcional: Redirigir al inicio después de unos segundos
+      setTimeout(() => router.push('/dashboard'), 3000)
     } else {
-      if (res.fieldErrors) {
-        setFieldErrors(res.fieldErrors)
-      } else {
-        setError(res.error)
-      }
+      setError('Error al restablecer la contraseña. El enlace puede haber expirado o es inválido.')
     }
     
     setIsLoading(false)
@@ -55,10 +69,10 @@ export default function ResetPasswordPage() {
         </div>
         <h2 className="text-2xl font-semibold tracking-tight">Contraseña actualizada</h2>
         <p className="text-sm text-muted-foreground">
-          Tu contraseña ha sido restablecida exitosamente. Ya puedes iniciar sesión con tus nuevas credenciales.
+          Tu contraseña ha sido establecida exitosamente. Redirigiendo a tu cuenta...
         </p>
         <Button asChild className="mt-4">
-          <Link href="/auth/login">Iniciar sesión</Link>
+          <Link href="/dashboard">Ir al Dashboard</Link>
         </Button>
       </div>
     )
@@ -82,26 +96,39 @@ export default function ResetPasswordPage() {
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="password">Nueva contraseña</Label>
-          <Input 
-            id="password" 
-            name="password" 
-            type="password" 
-            required 
-            disabled={isLoading}
-            error={fieldErrors.password?.[0]}
-          />
+          <div className="relative">
+            <Input 
+              id="password" 
+              name="password" 
+              type={showPassword ? "text" : "password"} 
+              required 
+              disabled={isLoading}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {fieldErrors.password && <p className="text-xs text-red-500 mt-1">{fieldErrors.password[0]}</p>}
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="confirm_password">Confirmar contraseña</Label>
-          <Input 
-            id="confirm_password" 
-            name="confirm_password" 
-            type="password" 
-            required 
-            disabled={isLoading}
-            error={fieldErrors.confirm_password?.[0]}
-          />
+          <div className="relative">
+            <Input 
+              id="confirm_password" 
+              name="confirm_password" 
+              type={showPassword ? "text" : "password"} 
+              required 
+              disabled={isLoading}
+              className="pr-10"
+            />
+          </div>
+          {fieldErrors.confirm_password && <p className="text-xs text-red-500 mt-1">{fieldErrors.confirm_password[0]}</p>}
         </div>
         
         <Button type="submit" className="w-full" isLoading={isLoading}>
