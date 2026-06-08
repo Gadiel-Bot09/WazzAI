@@ -89,9 +89,27 @@ export default async function DashboardLayout({
       {profile?.org_id && <RealtimeListener orgId={profile.org_id} currentUser={profile} />}
       <Sidebar isPlatformAdmin={isPlatformAdmin} permissions={permissions} isOwner={isOwner} orgName={orgName} />
       <main className="flex-1 flex flex-col min-w-0 bg-muted/10 relative h-screen">
-        <SubscriptionGuard>
-          {children}
-        </SubscriptionGuard>
+        {/* Professional Top Header */}
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white/50 backdrop-blur-md border-b z-10">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-bold shadow-sm border border-primary/10">
+              {orgName.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-foreground tracking-tight leading-none">{orgName}</span>
+              <span className="text-[11px] font-medium text-muted-foreground mt-1 uppercase tracking-wider">Espacio de trabajo</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+             {/* Future items like notifications or user profile menu can go here */}
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto">
+          <SubscriptionGuard>
+            {children}
+          </SubscriptionGuard>
+        </div>
       </main>
     </div>
   )
