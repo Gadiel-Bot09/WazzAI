@@ -59,12 +59,18 @@ export default async function DashboardLayout({
       roleData = roleData[0]
     }
 
-    if (!roleData) {
-      // Owner or no role assigned
+    if (profile.role === 'owner') {
       isOwner = true
       permissions = { all: true }
+    } else if (!roleData || !roleData.permissions) {
+      isOwner = false
+      permissions = {}
     } else {
-      permissions = roleData.permissions || {}
+      let perms = roleData.permissions
+      if (typeof perms === 'string') {
+        try { perms = JSON.parse(perms) } catch(e) { perms = {} }
+      }
+      permissions = perms || {}
     }
   }
 
