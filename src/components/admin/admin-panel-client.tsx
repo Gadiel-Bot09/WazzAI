@@ -25,8 +25,9 @@ import {
   Settings,
   Key,
 } from 'lucide-react'
-import { suspendOrgAction, reactivateOrgAction, assignPlanToOrgAction, activateSubscriptionAction, updatePlatformSettingsAction } from '@/actions/admin'
+import { suspendOrgAction, reactivateOrgAction, assignPlanToOrgAction, activateSubscriptionAction, updatePlatformSettingsAction, getAllPlansAction } from '@/actions/admin'
 import type { PlatformStats, AdminOrgRow, AdminPlanRow } from '@/actions/admin'
+import { PlanFormDialog } from './plan-form-dialog'
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ function OrgTable({ orgs, plans, onRefresh }: { orgs: AdminOrgRow[], plans: Admi
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">
-                        {org.plan_name ?? '—'}
+                        {org.plan_name ?? 'Sin Plan'}
                       </span>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
@@ -338,48 +339,87 @@ function OrgTable({ orgs, plans, onRefresh }: { orgs: AdminOrgRow[], plans: Admi
 
 // ─── Plans Manager ────────────────────────────────────────────────────────────
 
-function PlansManager({ plans }: { plans: AdminPlanRow[] }) {
+function PlansManager({ plans, onRefresh }: { plans: AdminPlanRow[], onRefresh: () => void }) {
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingPlan, setEditingPlan] = useState<AdminPlanRow | null>(null)
+
+  function handleCreate() {
+    setEditingPlan(null)
+    setDialogOpen(true)
+  }
+
+  function handleEdit(plan: AdminPlanRow) {
+    setEditingPlan(plan)
+    setDialogOpen(true)
+  }
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      {plans.map(plan => (
-        <Card key={plan.id} className={`border-border/60 ${!plan.is_active ? 'opacity-60' : ''}`}>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{plan.display_name}</CardTitle>
-              <Badge variant={plan.is_active ? 'default' : 'outline'} className="text-xs">
-                {plan.is_active ? 'Activo' : 'Inactivo'}
-              </Badge>
-            </div>
-            <CardDescription className="font-mono text-xs">{plan.name}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-muted/50 rounded-lg p-3 text-center">
-                <p className="text-xl font-bold">${plan.price_monthly}</p>
-                <p className="text-xs text-muted-foreground">mensual</p>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={handleCreate} className="h-9">
+          Nuevo Plan
+        </Button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {plans.map(plan => (
+          <Card key={plan.id} className={`border-border/60 ${!plan.is_active ? 'opacity-60' : ''}`}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">{plan.display_name}</CardTitle>
+                <Badge variant={plan.is_active ? 'default' : 'outline'} className="text-xs">
+                  {plan.is_active ? 'Activo' : 'Inactivo'}
+                </Badge>
               </div>
-              <div className="bg-muted/50 rounded-lg p-3 text-center">
-                <p className="text-xl font-bold">${plan.price_yearly}</p>
-                <p className="text-xs text-muted-foreground">anual</p>
-              </div>
-            </div>
-            <div className="space-y-1.5 text-xs">
-              {Object.entries(plan.limits || {}).map(([key, val]) => (
-                <div key={key} className="flex justify-between items-center">
-                  <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
-                  <span className="font-medium font-mono">
-                    {val === -1 ? '∞' : val.toLocaleString()}
-                  </span>
+              <CardDescription className="font-mono text-xs">{plan.name}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold">${plan.price_monthly}</p>
+                  <p className="text-xs text-muted-foreground">mensual</p>
                 </div>
-              ))}
-            </div>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="w-3 h-3" />
-              {plan.trial_days} días de prueba gratis
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold">${plan.price_yearly}</p>
+                  <p className="text-xs text-muted-foreground">anual</p>
+                </div>
+              </div>
+              <div className="space-y-1.5 text-xs mt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Operadores</span>
+                  <span className="font-medium font-mono">{plan.limits?.operators === -1 ? '∞' : (plan.limits?.operators ?? 0)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Números WhatsApp</span>
+                  <span className="font-medium font-mono">{plan.limits?.instances === -1 ? '∞' : (plan.limits?.instances ?? 0)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Mensajes / mes</span>
+                  <span className="font-medium font-mono">{plan.limits?.messages_per_month === -1 ? '∞' : (plan.limits?.messages_per_month?.toLocaleString() ?? 0)}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-muted-foreground pt-2 border-t">
+                <Clock className="w-3 h-3" />
+                {plan.trial_days} días de prueba gratis
+              </div>
+              <div className="pt-2">
+                <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => handleEdit(plan)}>
+                  Editar Plan
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <PlanFormDialog 
+        open={dialogOpen} 
+        onOpenChange={setDialogOpen} 
+        plan={editingPlan} 
+        onSuccess={() => {
+          setDialogOpen(false)
+          onRefresh()
+        }}
+      />
     </div>
   )
 }
@@ -393,9 +433,10 @@ interface AdminPanelClientProps {
   initialSettings: any[]
 }
 
-export function AdminPanelClient({ stats: initialStats, orgs: initialOrgs, plans, initialSettings }: AdminPanelClientProps) {
+export function AdminPanelClient({ stats: initialStats, orgs: initialOrgs, plans: initialPlans, initialSettings }: AdminPanelClientProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'orgs' | 'plans' | 'settings'>('overview')
   const [orgs, setOrgs] = useState(initialOrgs)
+  const [plans, setPlans] = useState(initialPlans)
   
   // Settings state
   const supportSetting = initialSettings.find(s => s.key === 'support_contact')?.value || { whatsapp_number: '', message_template: '' }
@@ -404,10 +445,13 @@ export function AdminPanelClient({ stats: initialStats, orgs: initialOrgs, plans
   const [savingSettings, setSavingSettings] = useState(false)
 
   async function handleRefresh() {
-    // Re-fetch orgs after mutations
+    // Re-fetch orgs and plans after mutations
     const { getAllOrgsAction } = await import('@/actions/admin')
-    const res = await getAllOrgsAction()
-    if (res.success) setOrgs(res.data)
+    const resOrgs = await getAllOrgsAction()
+    if (resOrgs.success) setOrgs(resOrgs.data)
+
+    const resPlans = await getAllPlansAction()
+    if (resPlans.success) setPlans(resPlans.data)
   }
 
   const tabs = [
@@ -585,7 +629,7 @@ export function AdminPanelClient({ stats: initialStats, orgs: initialOrgs, plans
         {/* ── Plans ────────────────────────────────────────────────────────── */}
         {activeTab === 'plans' && (
           <div className="space-y-6 max-w-5xl">
-            <PlansManager plans={plans} />
+            <PlansManager plans={plans} onRefresh={handleRefresh} />
           </div>
         )}
 

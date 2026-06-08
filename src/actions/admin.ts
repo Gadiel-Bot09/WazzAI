@@ -93,7 +93,7 @@ export async function getAllOrgsAction(): Promise<ActionResult<AdminOrgRow[]>> {
     .from('organizations')
     .select(`
       id, name, slug, is_active, is_suspended, suspension_reason, created_at,
-      subscriptions(status, plans(name)),
+      subscriptions(status, plans(display_name)),
       users(count),
       messages(count)
     `)
@@ -112,7 +112,7 @@ export async function getAllOrgsAction(): Promise<ActionResult<AdminOrgRow[]>> {
     is_suspended: org.is_suspended,
     suspension_reason: org.suspension_reason,
     created_at: org.created_at,
-    plan_name: org.subscriptions?.[0]?.plans?.name ?? null,
+    plan_name: org.subscriptions?.[0]?.plans?.display_name ?? null,
     subscription_status: org.subscriptions?.[0]?.status ?? null,
     user_count: org.users?.[0]?.count ?? 0,
     message_count: org.messages?.[0]?.count ?? 0,
