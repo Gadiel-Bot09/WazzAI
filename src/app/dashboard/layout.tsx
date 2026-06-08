@@ -20,7 +20,7 @@ export default async function DashboardLayout({
 
   // Verificar si completó el onboarding
   const adminSupabase = createAdminClient() as any
-  const { data: profileData } = await adminSupabase
+  const { data: profileData, error: profileError } = await adminSupabase
     .from('users')
     .select('org_id, role, department_id')
     .eq('id', user.id)
