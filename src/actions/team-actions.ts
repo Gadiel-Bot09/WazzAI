@@ -192,7 +192,7 @@ export async function inviteTeamMemberAction(email: string, role_id: string, ful
       const { data: orgData } = await admin.from('organizations').select('name').eq('id', orgId).single()
       
       const { data: authData, error: authErr } = await admin.auth.admin.inviteUserByEmail(email, {
-        data: { org_name: orgData?.name || 'WazzAI', full_name },
+        data: { org_name: orgData?.name || 'WazzAI', full_name, onboarding_completed: true },
         redirectTo: `${appUrl}/auth/reset-password`
       })
       if (authErr) return err(authErr.message)
