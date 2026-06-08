@@ -1,17 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { resetPasswordAction } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { createClient } from '@/lib/supabase/client'
 
 export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const [success, setSuccess] = useState(false)
+  
+  useEffect(() => {
+    // Al instanciar el cliente, este lee el fragmento #access_token de la URL (si venimos de una invitación)
+    // y lo guarda en las cookies para que el Server Action tenga la sesión activa.
+    createClient().auth.getSession()
+  }, [])
   
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()

@@ -17,7 +17,7 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true)
   
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
-  const [inviteData, setInviteData] = useState({ email: '', roleId: '' })
+  const [inviteData, setInviteData] = useState({ email: '', full_name: '', roleId: '' })
   
   useEffect(() => {
     fetchData()
@@ -47,16 +47,19 @@ export default function UsersPage() {
 
   const handleInvite = async () => {
     if (!inviteData.email.trim()) return toast.error('El correo es obligatorio')
+    if (!inviteData.full_name.trim()) return toast.error('El nombre es obligatorio')
     if (!inviteData.roleId) return toast.error('Debe seleccionar un rol')
     
     const res = await inviteTeamMemberAction(
       inviteData.email,
-      inviteData.roleId
+      inviteData.roleId,
+      inviteData.full_name
     )
 
     if (res.success) {
       toast.success('Usuario invitado exitosamente')
       setIsInviteModalOpen(false)
+      setInviteData(prev => ({ ...prev, email: '', full_name: '' }))
       fetchData()
     } else {
       toast.error('No se pudo invitar', { description: res.error })
@@ -155,20 +158,25 @@ export default function UsersPage() {
       <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Añadir Usuario a la Organización</DialogTitle>
+            <DialogTitle>Invitar Usuario</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Correo del usuario</Label>
+              <Label>Nombre completo</Label>
               <Input 
-                type="email"
-                value={inviteData.email} 
-                onChange={e => setInviteData({ ...inviteData, email: e.target.value })} 
-                placeholder="ejemplo@correo.com"
+                placeholder="Ej. Juan Pérez" 
+                value={inviteData.full_name}
+                onChange={e => setInviteData(prev => ({ ...prev, full_name: e.target.value }))}
               />
-              <p className="text-xs text-muted-foreground">El usuario debe haber creado su cuenta o recibir la invitación por correo.</p>
             </div>
-            
+            <div className="space-y-2">
+              <Label>Correo electrónico</Label>
+              <Input 
+                placeholder="ejemplo@empresa.com" 
+                value={inviteData.email}
+                onChange={e => setInviteData(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
             <div className="space-y-2">
               <Label>Rol de Acceso</Label>
               <Select value={inviteData.roleId} onValueChange={v => setInviteData({ ...inviteData, roleId: v })}>
