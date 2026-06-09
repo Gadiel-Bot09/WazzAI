@@ -18,6 +18,7 @@ const PUBLIC_ROUTES = [
   '/auth/callback',
   '/api/webhooks/evolution',
   '/api/webhooks/stripe',
+  '/api/cron/retry-messages',
   '/sitemap.xml',
   '/robots.txt',
 ]
