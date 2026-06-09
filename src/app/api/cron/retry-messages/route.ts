@@ -29,7 +29,7 @@ export async function GET(request: Request) {
         content,
         message_type,
         media_url,
-        media_type,
+        media_mime_type,
         metadata,
         conversations (
           instance_id,
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
       try {
         if (msg.media_url) {
           // Enviar Media
-          const mediaType = msg.media_type || msg.message_type
+          const mediaType = msg.media_mime_type || msg.message_type
           let evoMediaType: 'image' | 'video' | 'audio' | 'document' = 'document'
           
           if (mediaType.startsWith('image/') || mediaType === 'image') evoMediaType = 'image'
