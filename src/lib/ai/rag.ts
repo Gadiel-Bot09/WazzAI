@@ -218,20 +218,23 @@ export async function saveAndSendAIMessage({
 
   // 1. Save in DB as 'ai' direction
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (admin as any).from('messages').insert({
+  const { data: insertedMsg } = await (admin as any).from('messages').insert({
     conversation_id: conversationId,
     org_id: orgId,
     direction: 'ai',
     content: replyText,
     message_type: 'text',
-    status: 'sent',
+    status: 'queued', // <-- Changed to queued
     sent_at: new Date().toISOString(),
-  })
+  }).select('id').single()
 
   // 2. Send via WhatsApp (Evolution API)
   try {
     const finalInstanceId = instanceId || orgId // Fallback just in case
     await evolutionClient.sendTextMessage(finalInstanceId, contactPhone, replyText)
+    if (insertedMsg) {
+      await (admin as any).from('messages').update({ status: 'sent' }).eq('id', insertedMsg.id)
+    }
   } catch (err) {
     console.error('[RAG] Failed to send AI message via Evolution:', err)
   }
@@ -266,21 +269,24 @@ export async function saveAndSendMediaMessage({
   const textContent = caption || '[Media]'
 
   // 1. Save in DB
-  await (admin as any).from('messages').insert({
+  const { data: insertedMsg } = await (admin as any).from('messages').insert({
     conversation_id: conversationId,
     org_id: orgId,
     direction: 'ai',
     content: textContent,
     message_type: mediaType,
     media_url: mediaUrl,
-    status: 'sent',
+    status: 'queued', // <-- Changed to queued
     sent_at: new Date().toISOString(),
-  })
+  }).select('id').single()
 
   // 2. Send via WhatsApp
   try {
     const finalInstanceId = instanceId || orgId
     await evolutionClient.sendMedia(finalInstanceId, contactPhone, mediaUrl, mediaType as 'image' | 'video' | 'audio' | 'document', caption || '')
+    if (insertedMsg) {
+      await (admin as any).from('messages').update({ status: 'sent' }).eq('id', insertedMsg.id)
+    }
   } catch (err) {
     console.error('[RAG] Failed to send media via Evolution:', err)
   }

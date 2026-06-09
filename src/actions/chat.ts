@@ -105,68 +105,36 @@ export async function sendChatMessageAction(
   if (!contact) return err('Contacto no encontrado')
 
   try {
-    // 1. Send via Evolution API (ONLY if it's not an internal note)
-    if (!isInternalNote) {
-      if (!conv.instance_id) {
-        console.error('[sendChatMessage] No instance_id on conversation:', conversationId)
-        return err('Esta conversación no tiene una instancia de WhatsApp asignada')
-      }
-
-      const finalInstanceId = conv.instance_id
-      console.log(`[sendChatMessage] Sending via instance ${finalInstanceId} to ${contact.phone_number}`)
-
-      if (mediaUrl && mediaType?.startsWith('image/')) {
-        // Send as image via Evolution sendMedia
-        await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'image', text || undefined)
-      } else if (mediaUrl && mediaType?.startsWith('video/')) {
-        // Send as video
-        await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'video', text || undefined)
-      } else if (mediaUrl && mediaType?.startsWith('audio/')) {
-        // Send as audio
-        await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'audio', text || undefined)
-      } else if (mediaUrl) {
-        // Everything else: PDFs, Word, Excel, ZIP, etc. → document
-        await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'document', text || undefined)
-      } else {
-        // Send plain text (include a note if there's media we can't type-classify)
-        const sendText = text || (mediaUrl ? '📎 Archivo adjunto' : '')
-        if (!sendText) return err('No hay contenido para enviar')
-        await evolutionClient.sendTextMessage(finalInstanceId, contact.phone_number, sendText)
-      }
-    }
-
-    // 2. Guardar el mensaje en Supabase
+    // 1. Guardar el mensaje en Supabase como "queued" primero
     const admin = createAdminClient()
     const now = new Date().toISOString()
     
     // Derive the correct message_type enum value accepted by the DB
-    // Valid values: 'text' | 'image' | 'document' | 'audio' | 'video'
     let dbMessageType = 'text'
     if (mediaUrl && mediaType) {
       if (mediaType.startsWith('image/')) dbMessageType = 'image'
       else if (mediaType.startsWith('video/')) dbMessageType = 'video'
       else if (mediaType.startsWith('audio/')) dbMessageType = 'audio'
-      else dbMessageType = 'document' // PDF, Word, Excel, ZIP, etc.
+      else dbMessageType = 'document'
     }
 
     // Build the insert payload
     const msgPayload: Record<string, any> = {
       conversation_id: conversationId,
       org_id: (profile as any).org_id,
-      sender_id: user.id, // el humano logueado
+      sender_id: user.id,
       direction: 'outbound',
       message_type: dbMessageType,
       content: text,
       media_url: mediaUrl,
       media_mime_type: mediaType,
-      status: isInternalNote ? 'delivered' : 'sent', // Internal notes don't need delivery confirmation
+      status: isInternalNote ? 'delivered' : 'queued', // <-- Cambiado a queued
       is_internal_note: isInternalNote,
       sent_at: now,
       delivered_at: isInternalNote ? now : null,
       read_at: isInternalNote ? now : null
     }
 
-    // Add media fields only when present (in case columns don't exist yet)
     if (mediaUrl) msgPayload.media_url = mediaUrl
     if (mediaType) msgPayload.media_type = mediaType
 
@@ -178,10 +146,43 @@ export async function sendChatMessageAction(
 
     if (insertError) {
       console.error('[sendChatMessageAction] Failed to save message to DB:', insertError)
-      // Still return ok since the message was already sent via Evolution
-      // but log so we can debug
-      return err(`Mensaje enviado pero error al guardar: ${insertError.message}`)
+      return err(`Error al guardar en base de datos: ${insertError.message}`)
     }
+
+    // 2. Send via Evolution API (ONLY if it's not an internal note)
+    if (!isInternalNote) {
+      if (!conv.instance_id) {
+        console.error('[sendChatMessage] No instance_id on conversation:', conversationId)
+        return err('Esta conversación no tiene una instancia de WhatsApp asignada')
+      }
+
+      const finalInstanceId = conv.instance_id
+      console.log(`[sendChatMessage] Sending via instance ${finalInstanceId} to ${contact.phone_number}`)
+
+      try {
+        if (mediaUrl && mediaType?.startsWith('image/')) {
+          await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'image', text || undefined)
+        } else if (mediaUrl && mediaType?.startsWith('video/')) {
+          await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'video', text || undefined)
+        } else if (mediaUrl && mediaType?.startsWith('audio/')) {
+          await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'audio', text || undefined)
+        } else if (mediaUrl) {
+          await evolutionClient.sendMedia(finalInstanceId, contact.phone_number, mediaUrl, 'document', text || undefined)
+        } else {
+          const sendText = text || (mediaUrl ? '📎 Archivo adjunto' : '')
+          if (!sendText) return err('No hay contenido para enviar')
+          await evolutionClient.sendTextMessage(finalInstanceId, contact.phone_number, sendText)
+        }
+
+        // Si tuvo éxito, actualizamos a 'sent'
+        await (admin as any).from('messages').update({ status: 'sent' }).eq('id', insertedMsg.id)
+      } catch (evoError) {
+        console.error('[sendChatMessage] Evolution API failed, message left as queued:', evoError)
+        // No retornamos error. El cron job lo reintentará.
+      }
+    }
+
+    // El mensaje ya fue insertado al principio de la función.
 
     // 3. Actualizar conversación
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

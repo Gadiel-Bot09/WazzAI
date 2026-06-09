@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { CheckCheck, Check, Bot, FileText, Download, X } from 'lucide-react'
+import { CheckCheck, Check, Bot, FileText, Download, X, Clock, AlertCircle } from 'lucide-react'
 
 interface MessageBubbleProps {
   message: any
@@ -106,6 +106,10 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                   <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
                 ) : message.status === 'sending' ? (
                   <Check className="w-3.5 h-3.5 opacity-50" />
+                ) : message.status === 'queued' ? (
+                  <Clock className="w-3 h-3 opacity-60" />
+                ) : message.status === 'failed' ? (
+                  <AlertCircle className="w-3.5 h-3.5 text-red-500" />
                 ) : (
                   <CheckCheck className="w-3.5 h-3.5" />
                 )}
