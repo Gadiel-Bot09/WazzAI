@@ -128,7 +128,7 @@ export async function sendChatMessageAction(
       content: text,
       media_url: mediaUrl,
       media_mime_type: mediaType,
-      status: isInternalNote ? 'delivered' : 'queued', // <-- Cambiado a queued
+      status: isInternalNote ? 'delivered' : 'sending', // <-- Cambiado a sending en lugar de queued
       is_internal_note: isInternalNote,
       sent_at: now,
       delivered_at: isInternalNote ? now : null,

@@ -104,9 +104,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               <span>
                 {message.status === 'read' ? (
                   <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
+                ) : message.status === 'delivered' ? (
+                  <CheckCheck className="w-3.5 h-3.5" />
+                ) : message.status === 'sent' ? (
+                  <Check className="w-3.5 h-3.5 opacity-80" />
                 ) : message.status === 'sending' ? (
-                  <Check className="w-3.5 h-3.5 opacity-50" />
-                ) : message.status === 'queued' ? (
                   <Clock className="w-3 h-3 opacity-60" />
                 ) : message.status === 'failed' ? (
                   <AlertCircle className="w-3.5 h-3.5 text-red-500" />

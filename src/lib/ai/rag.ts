@@ -224,7 +224,7 @@ export async function saveAndSendAIMessage({
     direction: 'ai',
     content: replyText,
     message_type: 'text',
-    status: 'queued', // <-- Changed to queued
+    status: 'sending', // <-- Changed to sending
     sent_at: new Date().toISOString(),
   }).select('id').single()
 
@@ -276,7 +276,7 @@ export async function saveAndSendMediaMessage({
     content: textContent,
     message_type: mediaType,
     media_url: mediaUrl,
-    status: 'queued', // <-- Changed to queued
+    status: 'sending', // <-- Changed to sending
     sent_at: new Date().toISOString(),
   }).select('id').single()
 

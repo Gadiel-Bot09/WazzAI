@@ -38,7 +38,7 @@ export async function GET(request: Request) {
           )
         )
       `)
-      .eq('status', 'queued')
+      .eq('status', 'sending')
       .in('direction', ['outbound', 'ai'])
       .lt('created_at', tenSecondsAgo)
       .limit(50)
@@ -90,7 +90,7 @@ export async function GET(request: Request) {
       } catch (evoErr: any) {
         // Falló el envío. Incrementar contador de reintentos
         failCount++
-        await updateMessageStatus(adminClient, msg.id, 'queued', msg.metadata, evoErr.message || 'Unknown error')
+        await updateMessageStatus(adminClient, msg.id, 'sending', msg.metadata, evoErr.message || 'Unknown error')
       }
     }
 
