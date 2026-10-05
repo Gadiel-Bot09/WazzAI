@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="wz-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Bubble -->
+  <path d="M256 48C132.3 48 32 135.2 32 243c0 58.7 28.5 111.4 73 146.5 5.4 34.2-35 81-35 81 0 0 59.8-9.2 103.5-28 26.2 9.3 54.3 14.5 82.5 14.5 123.7 0 224-87.2 224-195S379.7 48 256 48z" fill="url(#wz-grad)"/>
+
+  <!-- The "W" -->
+  <path d="M140 180 L190 320 L256 240 L322 320 L372 180" fill="none" stroke="#ffffff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- AI Sparkles -->
+  <path d="M360 130 Q 380 130 380 110 Q 380 130 400 130 Q 380 130 380 150 Q 380 130 360 130 Z" fill="#fbbf24"/>
+  <path d="M120 150 Q 135 150 135 135 Q 135 150 150 150 Q 135 150 135 165 Q 135 150 120 150 Z" fill="#fbbf24"/>
+</svg>
