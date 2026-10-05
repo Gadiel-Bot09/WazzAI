@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Bot } from 'lucide-react'
+import { Logo } from '@/components/layout/logo'
 
 export function Footer() {
   return (
@@ -9,9 +9,7 @@ export function Footer() {
           
           <div className="md:col-span-1 space-y-4">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
-                <Bot className="w-5 h-5 text-white" />
-              </div>
+              <Logo className="w-8 h-8" />
               <span className="font-bold text-xl tracking-tight">WazzAI</span>
             </Link>
             <p className="text-muted-foreground text-sm">
@@ -23,7 +21,7 @@ export function Footer() {
             <h4 className="font-semibold mb-4">Producto</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li><Link href="#features" className="hover:text-foreground transition-colors">Características</Link></li>
-              <li><Link href="#pricing" className="hover:text-foreground transition-colors">Precios</Link></li>
+              <li><Link href="#contact" className="hover:text-foreground transition-colors">Contacto</Link></li>
               <li><Link href="/auth/login" className="hover:text-foreground transition-colors">Iniciar Sesión</Link></li>
             </ul>
           </div>
