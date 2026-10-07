@@ -88,20 +88,32 @@ export default async function DashboardLayout({
     <div className="flex h-screen overflow-hidden bg-background">
       {profile?.org_id && <RealtimeListener orgId={profile.org_id} currentUser={profile} />}
       <Sidebar isPlatformAdmin={isPlatformAdmin} permissions={permissions} isOwner={isOwner} orgName={orgName} />
-      <main className="flex-1 flex flex-col min-w-0 bg-muted/10 relative h-screen">
+      <main className="flex-1 flex flex-col min-w-0 content-mesh relative h-screen">
         {/* Professional Top Header */}
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white/50 backdrop-blur-md border-b z-10">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-bold shadow-sm border border-primary/10">
-              {orgName.charAt(0).toUpperCase()}
+        <header className="relative h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white/70 dark:bg-background/70 backdrop-blur-xl border-b z-10">
+          {/* Línea de acento con gradiente animado de la marca */}
+          <div className="absolute inset-x-0 top-0 h-[3px] brand-gradient-animated" />
+
+          <div className="flex items-center gap-3 animate-wz-fade-up">
+            <div className="relative">
+              <div className="flex items-center justify-center w-10 h-10 rounded-2xl brand-gradient-animated text-white font-bold text-lg shadow-lg shadow-emerald-500/30">
+                {orgName.charAt(0).toUpperCase()}
+              </div>
+              <span className="absolute -top-1 -right-1 text-[11px] animate-wz-sparkle" aria-hidden>✨</span>
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-bold text-foreground tracking-tight leading-none">{orgName}</span>
-              <span className="text-[11px] font-medium text-muted-foreground mt-1 uppercase tracking-wider">Espacio de trabajo</span>
+              <span className="text-[11px] font-semibold mt-1 uppercase tracking-wider brand-text">Espacio de trabajo</span>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-             {/* Future items like notifications or user profile menu can go here */}
+          <div className="flex items-center gap-4 animate-wz-fade-up" style={{ animationDelay: '120ms' }}>
+            <div className="hidden sm:flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 animate-wz-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              IA activa
+            </div>
           </div>
         </header>
 

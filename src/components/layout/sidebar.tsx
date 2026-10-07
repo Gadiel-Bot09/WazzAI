@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -21,6 +21,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { Logo } from '@/components/layout/logo'
+import { motion } from 'framer-motion'
 
 const navItems = [
   {
@@ -146,73 +147,93 @@ export function Sidebar({
   const filteredNavItems = navItems.filter(item => canAccess(item.href))
   const filteredBottomItems = bottomItems.filter(item => canAccess(item.href))
 
+  // Solo un item activo a la vez (el de ruta más específica) para que el indicador animado no se duplique
+  const allHrefs = [...filteredNavItems, ...filteredBottomItems].map(i => i.href)
+  const activeHref = allHrefs
+    .filter(h => isActive(h))
+    .sort((a, b) => b.length - a.length)[0]
+
+  const renderItem = (item: typeof navItems[number], index: number, keyPrefix: string) => {
+    const active = item.href === activeHref
+    return (
+      <Link
+        key={`${keyPrefix}-${item.href}-${item.label}`}
+        href={item.href}
+        style={{ animationDelay: `${index * 35}ms` }}
+        className={`animate-wz-fade-up relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200 group ${
+          active ? 'text-white' : 'text-slate-400 hover:text-white'
+        }`}
+      >
+        {active && (
+          <motion.span
+            layoutId="sidebar-active-pill"
+            className="absolute inset-0 rounded-xl brand-gradient shadow-[0_8px_24px_-8px_rgba(16,185,129,0.65)]"
+            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+          />
+        )}
+        {!active && (
+          <span className="absolute inset-0 rounded-xl bg-white/0 group-hover:bg-white/[0.06] transition-colors duration-200" />
+        )}
+        <span
+          className={`relative z-10 flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-300 ${
+            active
+              ? 'bg-white/20'
+              : 'bg-white/[0.04] group-hover:bg-gradient-to-br group-hover:from-emerald-500/30 group-hover:to-blue-500/30 group-hover:scale-110'
+          }`}
+        >
+          <item.icon className="h-4 w-4 flex-shrink-0" />
+        </span>
+        <span className="relative z-10 flex-1 truncate transition-transform duration-200 group-hover:translate-x-0.5">
+          {item.label}
+        </span>
+        {active && <ChevronRight className="relative z-10 h-3.5 w-3.5 text-white/80" />}
+      </Link>
+    )
+  }
+
   return (
-    <aside className="w-64 border-r bg-background h-screen flex flex-col hidden md:flex shadow-sm">
+    <aside className="sidebar-aurora relative w-64 h-screen flex-col hidden md:flex shadow-xl overflow-hidden">
+      {/* Orbes decorativos animados */}
+      <div className="pointer-events-none absolute -top-16 -left-16 w-48 h-48 rounded-full bg-emerald-500/20 blur-3xl animate-wz-float" />
+      <div className="pointer-events-none absolute -bottom-20 -right-16 w-56 h-56 rounded-full bg-blue-500/20 blur-3xl animate-wz-float" style={{ animationDelay: '-3s' }} />
+
       {/* Logo & Org Name */}
-      <div className="h-16 flex items-center border-b px-5 hover:bg-muted/30 transition-colors">
-        <Link href="/dashboard" className="flex items-center gap-3 font-bold text-xl truncate">
-          <Logo />
-          <span className="text-foreground tracking-tight truncate">
+      <div className="relative h-16 flex items-center border-b border-white/10 px-5">
+        <Link href="/dashboard" className="flex items-center gap-3 font-bold text-xl truncate group">
+          <span className="relative">
+            <span className="absolute inset-0 rounded-full bg-emerald-400/40 blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <Logo className="relative w-8 h-8 transition-transform duration-500 group-hover:rotate-[-8deg] group-hover:scale-110" />
+          </span>
+          <span className="text-white tracking-tight truncate">
             {orgName}
           </span>
         </Link>
       </div>
 
       {/* Nav */}
-      <div className="flex-1 overflow-auto py-4 flex flex-col">
+      <div className="relative flex-1 overflow-auto py-4 flex flex-col no-scrollbar">
         <div className="px-3 mb-2">
-          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-2 mb-1">Principal</p>
-          <nav className="grid gap-0.5">
-            {filteredNavItems.map(item => {
-              const active = isActive(item.href)
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all group ${
-                    active
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }`}
-                >
-                  <item.icon className={`h-4 w-4 flex-shrink-0 ${active ? 'text-primary' : ''}`} />
-                  <span className="flex-1">{item.label}</span>
-                  {active && <ChevronRight className="h-3 w-3 text-primary/50" />}
-                </Link>
-              )
-            })}
+          <p className="text-[10px] font-semibold text-emerald-300/70 uppercase tracking-[0.18em] px-2 mb-2">Principal</p>
+          <nav className="grid gap-1">
+            {filteredNavItems.map((item, i) => renderItem(item, i, 'main'))}
           </nav>
         </div>
 
         {/* Settings & Admin */}
-        <div className="mt-auto px-3 pb-2 border-t pt-4">
-          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-2 mb-1">Configuración</p>
-          <nav className="grid gap-0.5">
-            {filteredBottomItems.map(item => {
-              const active = isActive(item.href)
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all group ${
-                    active
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }`}
-                >
-                  <item.icon className={`h-4 w-4 flex-shrink-0 ${active ? 'text-primary' : ''}`} />
-                  <span className="flex-1">{item.label}</span>
-                </Link>
-              )
-            })}
-            
+        <div className="mt-auto px-3 pb-3 border-t border-white/10 pt-4">
+          <p className="text-[10px] font-semibold text-blue-300/70 uppercase tracking-[0.18em] px-2 mb-2">Configuración</p>
+          <nav className="grid gap-1">
+            {filteredBottomItems.map((item, i) => renderItem(item, i + filteredNavItems.length, 'bottom'))}
+
             {/* Admin Panel Link */}
             {isPlatformAdmin && (
               <Link
                 href="/admin"
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all text-amber-600 hover:bg-amber-500/10 hover:text-amber-700 mt-2"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-amber-300 hover:bg-amber-400/10 hover:text-amber-200 mt-2"
               >
-                <ShieldAlert className="h-4 w-4 flex-shrink-0" />
+                <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-400/10">
+                  <ShieldAlert className="h-4 w-4 flex-shrink-0" />
+                </span>
                 <span>Panel Admin</span>
               </Link>
             )}
@@ -223,9 +244,11 @@ export function Sidebar({
                 const { logoutAction } = await import('@/actions/auth')
                 await logoutAction()
               }}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all text-red-500 hover:text-red-600 hover:bg-red-500/10 mt-2"
+              className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-rose-300 hover:text-white hover:bg-rose-500/80 mt-2"
             >
-              <LogOut className="h-4 w-4 flex-shrink-0" />
+              <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-rose-500/10 group-hover:bg-white/20 transition-colors">
+                <LogOut className="h-4 w-4 flex-shrink-0 transition-transform group-hover:-translate-x-0.5" />
+              </span>
               <span>Cerrar sesión</span>
             </button>
           </nav>

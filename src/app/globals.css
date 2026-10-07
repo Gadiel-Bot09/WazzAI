@@ -268,6 +268,148 @@
 }
 
 /* ============================================================
+   WAZZAI BRAND SYSTEM — colores del logotipo
+   Verde #10b981 → Azul #3b82f6 + chispa amarilla #fbbf24
+   ============================================================ */
+
+:root {
+  --brand-green: #10b981;
+  --brand-teal:  #14b8a6;
+  --brand-blue:  #3b82f6;
+  --brand-spark: #fbbf24;
+  --brand-ink:   #0b1220;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer components {
+  /* Gradiente principal de la marca */
+  .brand-gradient {
+    background-image: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-teal) 45%, var(--brand-blue) 100%);
+  }
+  .brand-gradient-animated {
+    background-image: linear-gradient(120deg, var(--brand-green), var(--brand-teal), var(--brand-blue), var(--brand-teal), var(--brand-green));
+    background-size: 300% 300%;
+    animation: wz-gradient-shift 8s ease infinite;
+  }
+  .brand-text {
+    background-image: linear-gradient(120deg, var(--brand-green), var(--brand-blue));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Sidebar oscuro con aurora de marca */
+  .sidebar-aurora {
+    background:
+      radial-gradient(120% 60% at 0% 0%, rgba(16, 185, 129, 0.28) 0%, transparent 55%),
+      radial-gradient(120% 60% at 100% 100%, rgba(59, 130, 246, 0.28) 0%, transparent 55%),
+      linear-gradient(180deg, #0b1220 0%, #0d1a2b 100%);
+  }
+
+  /* Fondo con malla de color suave para áreas de contenido */
+  .content-mesh {
+    background:
+      radial-gradient(60% 50% at 10% 0%, rgba(16, 185, 129, 0.07) 0%, transparent 60%),
+      radial-gradient(50% 40% at 100% 10%, rgba(59, 130, 246, 0.07) 0%, transparent 60%),
+      radial-gradient(40% 40% at 50% 100%, rgba(251, 191, 36, 0.05) 0%, transparent 60%),
+      hsl(var(--background));
+  }
+
+  /* Borde con gradiente (para tarjetas activas) */
+  .gradient-border {
+    position: relative;
+    background-clip: padding-box;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, var(--brand-green), var(--brand-blue));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Botón/elemento con brillo que recorre */
+  .shine {
+    position: relative;
+    overflow: hidden;
+  }
+  .shine::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+    transform: translateX(-120%);
+    animation: wz-shine 3.5s var(--ease-out-expo) infinite;
+  }
+}
+
+@layer utilities {
+  .animate-wz-fade-up   { animation: wz-fade-up 0.6s var(--ease-out-expo) both; }
+  .animate-wz-fade-in   { animation: wz-fade-in 0.5s ease-out both; }
+  .animate-wz-pop       { animation: wz-pop 0.5s var(--ease-out-expo) both; }
+  .animate-wz-float     { animation: wz-float 6s ease-in-out infinite; }
+  .animate-wz-spin-slow { animation: wz-spin 18s linear infinite; }
+  .animate-wz-spin-rev  { animation: wz-spin 26s linear infinite reverse; }
+  .animate-wz-glow      { animation: wz-glow 3s ease-in-out infinite; }
+  .animate-wz-sparkle   { animation: wz-sparkle 2.4s ease-in-out infinite; }
+  .animate-wz-ping      { animation: wz-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
+}
+
+@keyframes wz-gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+@keyframes wz-fade-up {
+  from { opacity: 0; transform: translateY(14px); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+@keyframes wz-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes wz-pop {
+  0%   { opacity: 0; transform: scale(0.85); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes wz-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-12px) rotate(-2deg); }
+}
+@keyframes wz-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes wz-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.0), 0 10px 40px -10px rgba(59, 130, 246, 0.45); }
+  50%      { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.10), 0 10px 50px -8px rgba(16, 185, 129, 0.55); }
+}
+@keyframes wz-sparkle {
+  0%, 100% { opacity: 0.4; transform: scale(0.8) rotate(0deg); }
+  50%      { opacity: 1;   transform: scale(1.15) rotate(20deg); }
+}
+@keyframes wz-ping {
+  0%        { transform: scale(1);   opacity: 0.7; }
+  75%, 100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes wz-shine {
+  0%       { transform: translateX(-120%); }
+  60%, 100% { transform: translateX(120%); }
+}
+
+/* Accesibilidad: respetar usuarios que prefieren menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
    CHAT SPECIFIC
    ============================================================ */
 

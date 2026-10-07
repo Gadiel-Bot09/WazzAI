@@ -263,7 +263,7 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
       </div>
 
       {/* Chat window */}
-      <div className={`flex-1 flex-col h-full bg-[#f0f2f5] dark:bg-muted/10 ${!activeId ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`flex-1 flex-col h-full bg-white/50 dark:bg-muted/5 ${!activeId ? 'hidden md:flex' : 'flex'}`}>
         {activeConversation ? (
           <ChatWindow
             key={activeConversation.id}
@@ -277,16 +277,29 @@ export function ChatLayout({ initialConversations, showAssignedAgent, currentUse
             currentUser={currentUser}
           />
         ) : (
-          <div className="flex h-full items-center justify-center flex-col text-muted-foreground p-8 text-center bg-slate-50 dark:bg-background">
-            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
+          <div className="flex h-full items-center justify-center flex-col text-muted-foreground p-8 text-center content-mesh relative overflow-hidden">
+            {/* Background elements */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[100px] animate-wz-spin-slow pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[80px] animate-wz-spin-rev pointer-events-none" />
+            
+            <div className="animate-wz-fade-up relative z-10 flex flex-col items-center">
+              <div className="relative w-24 h-24 mb-6">
+                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-400 to-blue-500 rounded-3xl rotate-6 animate-wz-glow opacity-20" />
+                <div className="absolute inset-0 bg-white dark:bg-slate-900 rounded-3xl border shadow-xl flex items-center justify-center animate-wz-float">
+                  <svg className="w-10 h-10 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  {/* Chispa IA */}
+                  <span className="absolute -top-2 -right-2 text-xl animate-wz-sparkle" aria-hidden>✨</span>
+                </div>
+              </div>
+              <h3 className="text-2xl font-extrabold text-foreground mb-3 tracking-tight">
+                Bandeja de <span className="brand-text">WhatsApp</span>
+              </h3>
+              <p className="max-w-[280px] sm:max-w-md text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+                Selecciona una conversación del panel izquierdo para comenzar a chatear o espera a recibir nuevos mensajes mágicamente.
+              </p>
             </div>
-            <h3 className="text-xl font-medium text-foreground mb-2">WhatsApp Inbox</h3>
-            <p className="max-w-md">
-              Selecciona una conversación del panel izquierdo para comenzar a chatear o espera a recibir nuevos mensajes.
-            </p>
           </div>
         )}
       </div>
