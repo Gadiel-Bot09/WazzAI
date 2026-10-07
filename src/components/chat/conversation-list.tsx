@@ -147,6 +147,7 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
               )
             })}
           </div>
+        )}
       </div>
     </div>
   )
