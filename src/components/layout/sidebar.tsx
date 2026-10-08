@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -108,12 +108,16 @@ export function Sidebar({
   isPlatformAdmin = false,
   permissions = {},
   isOwner = false,
-  orgName = 'WazzAI'
+  orgName = 'WazzAI',
+  isMobile = false,
+  onClose,
 }: { 
   isPlatformAdmin?: boolean,
   permissions?: Record<string, boolean>,
   isOwner?: boolean,
-  orgName?: string
+  orgName?: string,
+  isMobile?: boolean,
+  onClose?: () => void
 }) {
   const pathname = usePathname()
 
@@ -159,6 +163,11 @@ export function Sidebar({
       <Link
         key={`${keyPrefix}-${item.href}-${item.label}`}
         href={item.href}
+        onClick={() => {
+          if (isMobile && onClose) {
+            onClose()
+          }
+        }}
         style={{ animationDelay: `${index * 35}ms` }}
         className={`animate-wz-fade-up relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200 group ${
           active ? 'text-white' : 'text-slate-400 hover:text-white'
@@ -192,7 +201,7 @@ export function Sidebar({
   }
 
   return (
-    <aside className="sidebar-aurora relative w-64 h-screen flex-col hidden md:flex shadow-xl overflow-hidden">
+    <aside className={`sidebar-aurora relative h-screen flex-col shadow-xl overflow-hidden ${isMobile ? 'w-full flex' : 'w-64 hidden md:flex'}`}>
       {/* Orbes decorativos animados */}
       <div className="pointer-events-none absolute -top-16 -left-16 w-48 h-48 rounded-full bg-emerald-500/20 blur-3xl animate-wz-float" />
       <div className="pointer-events-none absolute -bottom-20 -right-16 w-56 h-56 rounded-full bg-blue-500/20 blur-3xl animate-wz-float" style={{ animationDelay: '-3s' }} />
